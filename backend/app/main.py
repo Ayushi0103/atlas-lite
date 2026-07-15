@@ -22,7 +22,7 @@ class Note(BaseModel):
 # Define the function that runs when someone visits "/".
 def read_root():
     # Return a JSON response with a welcome message.
-    return {"message": "Welcome to Atlas Lite"}
+    return {"message": "Welcome to Atlas Lite - Feature Branch"}
 
 
 # Register a POST endpoint for creating or saving notes.
