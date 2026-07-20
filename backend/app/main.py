@@ -22,8 +22,7 @@ class Note(BaseModel):
 # Define the function that runs when someone visits "/".
 def read_root():
     # Return a JSON response with a welcome message.
-    return {"message": "Welcome from Main Branch"}
-
+       return {"message": "Welcome from Feature Branch"}
 
 # Register a POST endpoint for creating or saving notes.
 @app.post("/notes")
