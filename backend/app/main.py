@@ -7,6 +7,9 @@ from pydantic import BaseModel
 # Create the FastAPI application instance.
 app = FastAPI()
 
+# Store notes in memory for now.
+notes = []
+
 
 # Define the data model for a note sent by the user.
 class Note(BaseModel):
@@ -22,12 +25,15 @@ class Note(BaseModel):
 # Define the function that runs when someone visits "/".
 def read_root():
     # Return a JSON response with a welcome message.
-       return {"message": "Welcome from Feature Branch"}
+       return {"message": "Welcome to Atlas Lite"}
 
 # Register a POST endpoint for creating or saving notes.
 @app.post("/notes")
 # Define the function that runs when someone sends note data to "/notes".
 def save_note(note: Note):
+    # Save the received note in memory.
+    notes.append(note)
+
     # Return a simple response that echoes the received note back to the user.
     return {
         "status": "saved",
@@ -36,3 +42,11 @@ def save_note(note: Note):
             "content": note.content,
         },
     }
+
+
+# Register a GET endpoint for returning all saved notes.
+@app.get("/notes")
+# Define the function that runs when someone asks for saved notes.
+def get_notes():
+    # Return the complete in-memory list of notes.
+    return notes
