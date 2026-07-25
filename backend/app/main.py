@@ -10,14 +10,23 @@ app = FastAPI()
 # Store notes in memory for now.
 notes = []
 
+# Keep track of the next available note ID.
+next_note_id = 1
+
 
 # Define the data model for a note sent by the user.
-class Note(BaseModel):
+class NoteCreate(BaseModel):
     # The note title is required and must be a string.
     title: str
 
     # The note content is required and must be a string.
     content: str
+
+
+class Note(BaseModel):
+    id: int
+    title: str
+    content: str    
 
 
 # Register a GET endpoint for the root URL.
@@ -30,17 +39,25 @@ def read_root():
 # Register a POST endpoint for creating or saving notes.
 @app.post("/notes")
 # Define the function that runs when someone sends note data to "/notes".
-def save_note(note: Note):
+def save_note(note: NoteCreate):
+    global next_note_id
+
     # Save the received note in memory.
-    notes.append(note)
+
+    new_note = Note(
+         id = next_note_id,
+         title = note.title,
+         content = note.content,
+    )
+    notes.append(new_note)
+
+    next_note_id += 1 
 
     # Return a simple response that echoes the received note back to the user.
     return {
+
         "status": "saved",
-        "note": {
-            "title": note.title,
-            "content": note.content,
-        },
+        "note": new_note,
     }
 
 
