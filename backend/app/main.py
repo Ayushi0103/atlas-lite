@@ -84,3 +84,25 @@ def get_note(note_id: int):
        status_code=404,
        detail="Note not found"
 )
+
+
+# Register a PUT endpoint for updating notes by their id.
+@app.put("/notes/{note_id}")
+# Define the function that runs when user wants to update an existing note.
+def update_note(note_id: int, updated_note: NoteCreate):
+    for note in notes:
+      if note.id == note_id:
+        note.title = updated_note.title
+        note.content = updated_note.content
+
+        return {
+            "status": "updated",
+            "note": note,
+        }
+
+    # Loop finished
+    # Nothing matched
+    raise HTTPException(
+      status_code=404,
+      detail="Note not found"
+)
