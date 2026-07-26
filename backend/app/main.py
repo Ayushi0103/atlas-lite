@@ -1,5 +1,5 @@
 # Import FastAPI so we can create a web application.
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 
 # Import BaseModel so we can describe the shape of request body data.
 from pydantic import BaseModel
@@ -67,3 +67,20 @@ def save_note(note: NoteCreate):
 def get_notes():
     # Return the complete in-memory list of notes.
     return notes
+
+
+# Register a GET endpoint for returning notes by their id.
+@app.get("/notes/{note_id}")
+# Define the function that runs when someone requests a note by its ID.
+def get_note(note_id: int):
+     
+     for note in notes:
+        if note.id == note_id:
+            return note
+        
+    # Loop finished
+    # Nothing matched
+     raise HTTPException(
+       status_code=404,
+       detail="Note not found"
+)
