@@ -106,3 +106,24 @@ def update_note(note_id: int, updated_note: NoteCreate):
       status_code=404,
       detail="Note not found"
 )
+
+
+# Register a DELETE endpoint for deleting notes by their id.
+@app.delete("/notes/{note_id}")
+# Define the function that runs when the user wants to delete an existing note.
+def delete_note(note_id: int):
+    for note in notes:
+      if note.id == note_id:
+        notes.remove(note)
+
+        return {
+            "status": "deleted",
+            "message": "Note deleted successfully"
+        }
+
+    # Loop finished
+    # Nothing matched
+    raise HTTPException(
+      status_code=404,
+      detail="Note not found"
+)
