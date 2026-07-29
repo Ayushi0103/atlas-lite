@@ -3,7 +3,7 @@ from typing import Annotated
 
 from fastapi import Depends, FastAPI, HTTPException
 from pydantic import BaseModel
-from sqlmodel import Session, select
+from sqlmodel import Session, select, or_
 
 from app.database import create_db_and_tables, engine
 from app.models import Note
@@ -52,6 +52,22 @@ def save_note(note: NoteCreate, session: SessionDep):
 @app.get("/notes")
 def get_notes(session: SessionDep):
     return session.exec(select(Note)).all()
+
+
+# Register a GET endpoint for searching notes.
+@app.get("/notes/search")
+# Define the function that runs when a user searches for notes.
+def search_notes(q: str, session: SessionDep):
+    statement = select(Note).where(
+    or_(
+        Note.title.contains(q),
+        Note.content.contains(q)
+    )
+)
+
+    results = session.exec(statement).all()
+
+    return results
 
 
 @app.get("/notes/{note_id}")
