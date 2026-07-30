@@ -12,3 +12,6 @@ class Note(SQLModel, table=True):
 
     # Note content.
     content: str
+
+    # Note tags.
+    tags: str = Field(default="")

@@ -29,6 +29,7 @@ SessionDep = Annotated[Session, Depends(get_session)]
 class NoteCreate(BaseModel):
     title: str
     content: str
+    tags: str
 
 
 @app.get("/")
@@ -38,7 +39,7 @@ def read_root():
 
 @app.post("/notes")
 def save_note(note: NoteCreate, session: SessionDep):
-    new_note = Note(title=note.title, content=note.content)
+    new_note = Note(title=note.title, content=note.content, tags=note.tags,)
     session.add(new_note)
     session.commit()
     session.refresh(new_note)
@@ -87,6 +88,7 @@ def update_note(note_id: int, updated_note: NoteCreate, session: SessionDep):
 
     note.title = updated_note.title
     note.content = updated_note.content
+    note.tags = updated_note.tags
     session.add(note)
     session.commit()
     session.refresh(note)
