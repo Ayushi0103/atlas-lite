@@ -1,6 +1,7 @@
+from datetime import datetime
+
 # Import SQLModel and Field.
 from sqlmodel import SQLModel, Field
-
 
 # Define the Note table.
 class Note(SQLModel, table=True):
@@ -15,3 +16,7 @@ class Note(SQLModel, table=True):
 
     # Note tags.
     tags: str = Field(default="")
+
+    created_at: datetime = Field(default_factory=datetime.now)
+
+    updated_at: datetime = Field(default_factory=datetime.now)
