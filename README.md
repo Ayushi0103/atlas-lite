@@ -1,10 +1,12 @@
 # Atlas Lite
 
-Atlas Lite is a privacy-first knowledge management backend built with FastAPI and SQLModel.
+# Atlas Lite
 
-The goal of Atlas Lite is to evolve into an intelligent personal knowledge engine that helps users organize, search, and retrieve information naturally. Instead of replacing existing storage, Atlas Lite aims to become an intelligence layer that makes stored knowledge easier to access and understand.
+Atlas Lite is a personal knowledge management backend built with FastAPI.
 
-This project is currently focused on building a strong backend foundation using modern backend engineering practices before introducing AI-powered capabilities.
+It helps store, organize, search, and manage notes through a REST API. The project is being developed step by step to learn backend development while building the foundation for a future AI-powered knowledge management system.
+
+The long-term goal is to make Atlas Lite capable of understanding and searching different types of information such as notes, PDFs, images, audio, and videos using natural language.
 
 ---
 
