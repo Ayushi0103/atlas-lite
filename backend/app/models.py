@@ -1,6 +1,7 @@
 from datetime import datetime
 
 # Import SQLModel, Field, and Relationship.
+from sqlalchemy import Column, Text
 from sqlmodel import SQLModel, Field, Relationship
 
 
@@ -8,9 +9,17 @@ class CollectionNote(SQLModel, table=True):
     __tablename__ = "collection_note"
 
     collection_id: int | None = Field(
-        default=None, foreign_key="collection.id", primary_key=True
+        default=None,
+        foreign_key="collection.id",
+        primary_key=True,
+        ondelete="CASCADE",
     )
-    note_id: int | None = Field(default=None, foreign_key="note.id", primary_key=True)
+    note_id: int | None = Field(
+        default=None,
+        foreign_key="note.id",
+        primary_key=True,
+        ondelete="CASCADE",
+    )
 
 
 # Define the Note table.
@@ -53,3 +62,24 @@ class Collection(SQLModel, table=True):
     notes: list[Note] = Relationship(
         back_populates="collections", link_model=CollectionNote
     )
+
+
+class Document(SQLModel, table=True):
+    # Primary key for each uploaded document.
+    id: int | None = Field(default=None, primary_key=True)
+
+    # Original filename provided at upload time.
+    filename: str
+
+    # Normalized file extension: txt, md, pdf, or docx.
+    file_type: str
+
+    # Path to the saved upload on disk.
+    file_path: str
+
+    # Extracted document text.
+    text_content: str = Field(sa_column=Column(Text, nullable=False))
+
+    created_at: datetime = Field(default_factory=datetime.now)
+
+    updated_at: datetime = Field(default_factory=datetime.now)
