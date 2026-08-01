@@ -77,6 +77,9 @@ class Document(SQLModel, table=True):
     # Path to the saved upload on disk.
     file_path: str
 
+    # Original source URL for imported external documents.
+    source_url: str | None = Field(default=None, unique=True)
+
     # Extracted document text.
     text_content: str = Field(sa_column=Column(Text, nullable=False))
 

@@ -11,6 +11,14 @@ from pydantic import BaseModel
 from pypdf import PdfReader
 from sqlmodel import Session, select, or_
 
+from app.connectors.youtube import (
+    InvalidYouTubeUrlError,
+    YouTubeTranscriptUnavailableError,
+    YouTubeVideoUnavailableError,
+    download_transcript,
+    extract_video_id,
+    normalize_source_url,
+)
 from app.database import create_db_and_tables, engine
 from app.models import Collection, CollectionNote, Document, Note
 
@@ -47,6 +55,10 @@ class NoteCreate(BaseModel):
 class CollectionCreate(BaseModel):
     name: str
     description: str | None = None
+
+
+class YouTubeImportRequest(BaseModel):
+    url: str
 
 
 def get_document_file_type(filename: str) -> str:
@@ -208,6 +220,54 @@ def get_document(document_id: int, session: SessionDep):
         raise HTTPException(status_code=404, detail="Document not found")
 
     return document
+
+
+@app.post("/connectors/youtube", status_code=status.HTTP_201_CREATED)
+def import_youtube_transcript(request: YouTubeImportRequest, session: SessionDep):
+    try:
+        video_id = extract_video_id(request.url)
+    except InvalidYouTubeUrlError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    source_url = normalize_source_url(video_id)
+    existing_document = session.exec(
+        select(Document).where(Document.source_url == source_url)
+    ).first()
+    if existing_document is not None:
+        raise HTTPException(
+            status_code=409,
+            detail="This YouTube video has already been imported",
+        )
+
+    try:
+        transcript = download_transcript(request.url)
+    except InvalidYouTubeUrlError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except YouTubeVideoUnavailableError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except YouTubeTranscriptUnavailableError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail="Could not import YouTube transcript",
+        ) from exc
+
+    document = Document(
+        filename=transcript.filename,
+        file_type="youtube",
+        file_path="",
+        source_url=transcript.source_url,
+        text_content=transcript.text_content,
+    )
+    session.add(document)
+    session.commit()
+    session.refresh(document)
+
+    return {
+        "status": "saved",
+        "document": document,
+    }
 
 
 @app.delete("/documents/{document_id}")

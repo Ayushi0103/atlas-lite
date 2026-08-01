@@ -70,3 +70,62 @@ The long-term objective is to create an intelligent layer that can organize, con
 ## Development
 
 This repository is built incrementally using feature branches and sprint-based development, with each feature being designed, tested, and merged following a production-style workflow. 
+
+---
+
+## YouTube Connector
+
+Atlas Lite can import a YouTube transcript as a normal searchable document.
+
+Install dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+Run database migrations:
+
+```bash
+alembic upgrade head
+```
+
+Import a transcript:
+
+```http
+POST /connectors/youtube
+Content-Type: application/json
+
+{
+  "url": "https://youtu.be/abc123xyz"
+}
+```
+
+Example response:
+
+```json
+{
+  "status": "saved",
+  "document": {
+    "id": 1,
+    "filename": "abc123xyz",
+    "file_type": "youtube",
+    "file_path": "",
+    "source_url": "https://youtu.be/abc123xyz",
+    "text_content": "Full transcript text...",
+    "created_at": "2026-08-01T10:00:00",
+    "updated_at": "2026-08-01T10:00:00"
+  }
+}
+```
+
+Search imported transcripts with the existing document search endpoint:
+
+```http
+GET /documents/search?q=transcript
+```
+
+Notes:
+
+- Only `youtube.com` and `youtu.be` URLs are accepted.
+- Duplicate video imports return `409 Conflict`.
+- Videos without available transcripts return `422 Unprocessable Entity`.
