@@ -2,14 +2,14 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
 from shutil import copyfileobj
-from typing import Annotated
 from uuid import uuid4
+import logging
 
 from docx import Document as DocxDocument
-from fastapi import Depends, FastAPI, File, HTTPException, UploadFile, status
+from fastapi import FastAPI, File, HTTPException, UploadFile, status
 from pydantic import BaseModel
 from pypdf import PdfReader
-from sqlmodel import Session, select, or_
+from sqlmodel import select, or_
 
 from app.connectors.youtube import (
     InvalidYouTubeUrlError,
@@ -19,9 +19,17 @@ from app.connectors.youtube import (
     extract_video_id,
     normalize_source_url,
 )
-from app.database import create_db_and_tables, engine
+from app.database import SessionDep, create_db_and_tables
 from app.models import Collection, CollectionNote, Document, Note
+from app.routes.search import router as search_router
+from app.services.embedding import (
+    add_document_embedding,
+    add_note_embedding,
+    delete_embedding,
+    update_embedding,
+)
 
+logger = logging.getLogger(__name__)
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 UPLOAD_DIR = ROOT_DIR / "uploads"
@@ -38,14 +46,6 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 
 
-def get_session():
-    with Session(engine) as session:
-        yield session
-
-
-SessionDep = Annotated[Session, Depends(get_session)]
-
-
 class NoteCreate(BaseModel):
     title: str
     content: str
@@ -59,6 +59,51 @@ class CollectionCreate(BaseModel):
 
 class YouTubeImportRequest(BaseModel):
     url: str
+
+
+def safely_index_note(note: Note) -> None:
+    if note.id is None:
+        return
+
+    try:
+        add_note_embedding(note.id, note.title, note.content)
+    except Exception:
+       logger.exception("Failed to index note %s", note.id)
+
+
+def safely_index_document(document: Document) -> None:
+    if document.id is None:
+        return
+
+    try:
+        add_document_embedding(document.id, document.filename, document.text_content)
+    except Exception:
+       logger.exception("Failed to index document %s", document.id)
+
+
+def safely_update_note_embedding(note: Note) -> None:
+    if note.id is None:
+        return
+
+    try:
+        update_embedding(
+            source_type="note",
+            source_id=note.id,
+            title=note.title,
+            text=f"{note.title}\n{note.content}",
+        )
+    except Exception:
+       logger.exception("Failed to update embedding for note %s", note.id)
+
+
+def safely_delete_embedding(source_type: str, source_id: int | None) -> None:
+    if source_id is None:
+        return
+
+    try:
+        delete_embedding(source_type, source_id)  # type: ignore[arg-type]
+    except Exception:
+        logger.exception("Failed to delete embedding for %s %s", source_type, source_id,)
 
 
 def get_document_file_type(filename: str) -> str:
@@ -112,6 +157,7 @@ def save_note(note: NoteCreate, session: SessionDep):
     session.add(new_note)
     session.commit()
     session.refresh(new_note)
+    safely_index_note(new_note)
 
     return {
         "status": "saved",
@@ -180,6 +226,7 @@ def upload_document(session: SessionDep, file: UploadFile = File(...)):
     session.add(document)
     session.commit()
     session.refresh(document)
+    safely_index_document(document)
 
     return {
         "status": "saved",
@@ -263,6 +310,7 @@ def import_youtube_transcript(request: YouTubeImportRequest, session: SessionDep
     session.add(document)
     session.commit()
     session.refresh(document)
+    safely_index_document(document)
 
     return {
         "status": "saved",
@@ -282,8 +330,10 @@ def delete_document(document_id: int, session: SessionDep):
     if file_path.exists():
         file_path.unlink()
 
+    document_id = document.id
     session.delete(document)
     session.commit()
+    safely_delete_embedding("document", document_id)
 
     return {
         "status": "deleted",
@@ -304,6 +354,7 @@ def update_note(note_id: int, updated_note: NoteCreate, session: SessionDep):
     session.add(note)
     session.commit()
     session.refresh(note)
+    safely_update_note_embedding(note)
 
     return {
         "status": "updated",
@@ -317,8 +368,10 @@ def delete_note(note_id: int, session: SessionDep):
     if note is None:
         raise HTTPException(status_code=404, detail="Note not found")
 
+    note_id = note.id
     session.delete(note)
     session.commit()
+    safely_delete_embedding("note", note_id)
 
     return {
         "status": "deleted",
@@ -465,3 +518,6 @@ def get_collection_notes(collection_id: int, session: SessionDep):
     )
 
     return session.exec(statement).all()
+
+
+app.include_router(search_router)
