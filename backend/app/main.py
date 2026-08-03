@@ -22,6 +22,7 @@ from app.connectors.youtube import (
 from app.database import SessionDep, create_db_and_tables
 from app.models import Collection, CollectionNote, Document, Note
 from app.routes.ai import router as ai_router
+from app.routes.conversations import router as conversations_router
 from app.routes.search import router as search_router
 from app.services.embedding import (
     add_document_embedding,
@@ -522,4 +523,5 @@ def get_collection_notes(collection_id: int, session: SessionDep):
 
 
 app.include_router(search_router)
+app.include_router(conversations_router)
 app.include_router(ai_router)

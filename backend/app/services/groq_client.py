@@ -3,7 +3,7 @@ import os
 import time
 from functools import lru_cache
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping
 
 from dotenv import load_dotenv
 
@@ -55,21 +55,38 @@ def _get_model() -> str:
     return model
 
 
-def generate_answer(question: str, context: str) -> str:
+def generate_answer(
+    question: str,
+    context: str,
+    conversation_history: list[Mapping[str, str]] | None = None,
+) -> str:
     client = _get_groq_client()
     model = _get_model()
     started_at = time.perf_counter()
+    messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+
+    if conversation_history:
+        messages.append(
+            {
+                "role": "user",
+                "content": (
+                    "Recent conversation history:\n"
+                    f"{_format_conversation_history(conversation_history)}"
+                ),
+            }
+        )
+
+    messages.append(
+        {
+            "role": "user",
+            "content": f"Context:\n{context}\n\nQuestion:\n{question}",
+        }
+    )
 
     try:
         response = client.chat.completions.create(
             model=model,
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {
-                    "role": "user",
-                    "content": f"Context:\n{context}\n\nQuestion:\n{question}",
-                },
-            ],
+            messages=messages,
             temperature=0.2,
         )
     except Exception as exc:
@@ -86,3 +103,19 @@ def generate_answer(question: str, context: str) -> str:
         raise GroqServiceError("Groq response did not include an answer") from exc
 
     return answer.strip() if answer else ""
+
+
+def _format_conversation_history(
+    conversation_history: list[Mapping[str, str]],
+) -> str:
+    formatted_messages: list[str] = []
+
+    for message in conversation_history:
+        role = message.get("role", "user").strip() or "user"
+        content = message.get("content", "").strip()
+        if not content:
+            continue
+
+        formatted_messages.append(f"{role}: {content}")
+
+    return "\n".join(formatted_messages)

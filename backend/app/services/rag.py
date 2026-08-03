@@ -1,5 +1,5 @@
 import logging
-from typing import Literal
+from typing import Literal, Mapping
 
 from pydantic import BaseModel
 
@@ -88,7 +88,10 @@ def _extract_sources(results: list[SemanticSearchResult]) -> list[RAGSource]:
     return sources
 
 
-def answer_question(question: str) -> RAGResponse:
+def answer_question(
+    question: str,
+    conversation_history: list[Mapping[str, str]] | None = None,
+) -> RAGResponse:
     cleaned_question = question.strip()
     logger.info("Incoming AI question: %s", cleaned_question)
 
@@ -103,7 +106,7 @@ def answer_question(question: str) -> RAGResponse:
     logger.info("Retrieved source count: %s", len(sources))
 
     try:
-        answer = generate_answer(cleaned_question, context)
+        answer = generate_answer(cleaned_question, context, conversation_history)
     except (GroqConfigurationError, GroqServiceError) as exc:
         raise LLMUnavailableError("LLM service unavailable") from exc
 

@@ -86,3 +86,40 @@ class Document(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.now)
 
     updated_at: datetime = Field(default_factory=datetime.now)
+
+
+class Conversation(SQLModel, table=True):
+    # Primary key for each AI conversation.
+    id: int | None = Field(default=None, primary_key=True)
+
+    # Human-readable conversation title.
+    title: str
+
+    created_at: datetime = Field(default_factory=datetime.now)
+
+    updated_at: datetime = Field(default_factory=datetime.now)
+
+    messages: list["Message"] = Relationship(
+        back_populates="conversation",
+        sa_relationship_kwargs={"cascade": "all, delete-orphan"},
+    )
+
+
+class Message(SQLModel, table=True):
+    # Primary key for each chat message.
+    id: int | None = Field(default=None, primary_key=True)
+
+    conversation_id: int = Field(
+        foreign_key="conversation.id",
+        index=True,
+        ondelete="CASCADE",
+    )
+
+    # Message author role: user or assistant.
+    role: str
+
+    content: str = Field(sa_column=Column(Text, nullable=False))
+
+    created_at: datetime = Field(default_factory=datetime.now)
+
+    conversation: Conversation = Relationship(back_populates="messages")
