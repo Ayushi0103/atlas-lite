@@ -1,4 +1,5 @@
 import logging
+from collections.abc import Generator
 from typing import Literal, Mapping
 
 from pydantic import BaseModel
@@ -8,6 +9,7 @@ from app.services.groq_client import (
     GroqConfigurationError,
     GroqServiceError,
     generate_answer,
+    generate_answer_stream,
 )
 
 
@@ -34,6 +36,13 @@ class NoRelevantContextError(RuntimeError):
 
 class LLMUnavailableError(RuntimeError):
     pass
+
+
+class RAGContext(BaseModel):
+    question: str
+    context: str
+    sources: list[RAGSource]
+    retrieved_document_count: int
 
 
 def _source_title(result: SemanticSearchResult) -> str:
@@ -88,10 +97,7 @@ def _extract_sources(results: list[SemanticSearchResult]) -> list[RAGSource]:
     return sources
 
 
-def answer_question(
-    question: str,
-    conversation_history: list[Mapping[str, str]] | None = None,
-) -> RAGResponse:
+def prepare_rag_context(question: str) -> RAGContext:
     cleaned_question = question.strip()
     logger.info("Incoming AI question: %s", cleaned_question)
 
@@ -105,9 +111,52 @@ def answer_question(
     sources = _extract_sources(results)
     logger.info("Retrieved source count: %s", len(sources))
 
+    return RAGContext(
+        question=cleaned_question,
+        context=context,
+        sources=sources,
+        retrieved_document_count=len(results),
+    )
+
+
+def answer_question(
+    question: str,
+    conversation_history: list[Mapping[str, str]] | None = None,
+) -> RAGResponse:
+    rag_context = prepare_rag_context(question)
+
     try:
-        answer = generate_answer(cleaned_question, context, conversation_history)
+        answer = generate_answer(
+            rag_context.question,
+            rag_context.context,
+            conversation_history,
+        )
     except (GroqConfigurationError, GroqServiceError) as exc:
         raise LLMUnavailableError("LLM service unavailable") from exc
 
-    return RAGResponse(answer=answer, sources=sources)
+    return RAGResponse(answer=answer, sources=rag_context.sources)
+
+
+def answer_question_stream(
+    question: str,
+    conversation_history: list[Mapping[str, str]] | None = None,
+) -> Generator[str, None, list[RAGSource]]:
+    rag_context = prepare_rag_context(question)
+    return stream_answer_from_context(rag_context, conversation_history)
+
+
+def stream_answer_from_context(
+    rag_context: RAGContext,
+    conversation_history: list[Mapping[str, str]] | None = None,
+) -> Generator[str, None, list[RAGSource]]:
+    try:
+        for chunk in generate_answer_stream(
+            rag_context.question,
+            rag_context.context,
+            conversation_history,
+        ):
+            yield chunk
+    except (GroqConfigurationError, GroqServiceError) as exc:
+        raise LLMUnavailableError("LLM service unavailable") from exc
+
+    return rag_context.sources

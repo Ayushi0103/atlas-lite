@@ -11,7 +11,7 @@ DATABASE_PATH = ROOT_DIR / "atlas.db"
 
 DATABASE_URL = f"sqlite:///{DATABASE_PATH.as_posix()}"
 
-engine = create_engine(DATABASE_URL)
+engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 
 print("DATABASE FILE:", DATABASE_PATH)
 
