@@ -1,8 +1,11 @@
+import logging
 from functools import lru_cache
 from typing import Any, Literal, TypedDict
 
 from app.chromadb_client import get_chroma_collection
 
+
+logger = logging.getLogger(__name__)
 
 EMBEDDING_MODEL_NAME = "all-MiniLM-L6-v2"
 CHUNK_SIZE_WORDS = 500
@@ -175,6 +178,7 @@ def semantic_search(query: str, top_k: int = 5) -> list[SemanticSearchResult]:
             include=["documents", "metadatas", "distances"],
         )
     except Exception:
+        logger.exception("Semantic search failed")
         return []
 
     documents = matches.get("documents", [[]])[0]
