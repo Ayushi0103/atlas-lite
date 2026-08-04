@@ -56,14 +56,41 @@ def _get_model() -> str:
     return model
 
 
+def generate_chat_completion(
+    messages: list[Mapping[str, str]],
+    temperature: float = 0.2,
+) -> str:
+    client = _get_groq_client()
+    model = _get_model()
+    started_at = time.perf_counter()
+
+    try:
+        response = client.chat.completions.create(
+            model=model,
+            messages=messages,
+            temperature=temperature,
+        )
+    except Exception as exc:
+        logger.exception("Groq request failed")
+        raise GroqServiceError("Groq request failed") from exc
+    finally:
+        latency_ms = (time.perf_counter() - started_at) * 1000
+        logger.info("Groq response latency: %.2f ms", latency_ms)
+
+    try:
+        answer = response.choices[0].message.content
+    except (AttributeError, IndexError) as exc:
+        logger.exception("Groq response did not include an answer")
+        raise GroqServiceError("Groq response did not include an answer") from exc
+
+    return answer.strip() if answer else ""
+
+
 def generate_answer(
     question: str,
     context: str,
     conversation_history: list[Mapping[str, str]] | None = None,
 ) -> str:
-    client = _get_groq_client()
-    model = _get_model()
-    started_at = time.perf_counter()
     messages = [{"role": "system", "content": SYSTEM_PROMPT}]
 
     if conversation_history:
@@ -84,26 +111,7 @@ def generate_answer(
         }
     )
 
-    try:
-        response = client.chat.completions.create(
-            model=model,
-            messages=messages,
-            temperature=0.2,
-        )
-    except Exception as exc:
-        logger.exception("Groq request failed")
-        raise GroqServiceError("Groq request failed") from exc
-    finally:
-        latency_ms = (time.perf_counter() - started_at) * 1000
-        logger.info("Groq response latency: %.2f ms", latency_ms)
-
-    try:
-        answer = response.choices[0].message.content
-    except (AttributeError, IndexError) as exc:
-        logger.exception("Groq response did not include an answer")
-        raise GroqServiceError("Groq response did not include an answer") from exc
-
-    return answer.strip() if answer else ""
+    return generate_chat_completion(messages, temperature=0.2)
 
 
 def generate_answer_stream(

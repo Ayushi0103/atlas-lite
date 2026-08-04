@@ -83,6 +83,26 @@ class Document(SQLModel, table=True):
     # Extracted document text.
     text_content: str = Field(sa_column=Column(Text, nullable=False))
 
+    # AI-generated summary metadata.
+    short_summary: str | None = Field(
+        default=None, sa_column=Column(Text, nullable=True)
+    )
+
+    detailed_summary: str | None = Field(
+        default=None, sa_column=Column(Text, nullable=True)
+    )
+
+    # JSON-encoded lists.
+    key_concepts: str | None = Field(
+        default=None, sa_column=Column(Text, nullable=True)
+    )
+
+    keywords: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
+
+    suggested_questions: str | None = Field(
+        default=None, sa_column=Column(Text, nullable=True)
+    )
+
     created_at: datetime = Field(default_factory=datetime.now)
 
     updated_at: datetime = Field(default_factory=datetime.now)

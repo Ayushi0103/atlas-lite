@@ -9,7 +9,7 @@ from docx import Document as DocxDocument
 from fastapi import FastAPI, File, HTTPException, UploadFile, status
 from pydantic import BaseModel
 from pypdf import PdfReader
-from sqlmodel import select, or_
+from sqlmodel import Session, select, or_
 
 from app.connectors.youtube import (
     InvalidYouTubeUrlError,
@@ -29,6 +29,10 @@ from app.services.embedding import (
     add_note_embedding,
     delete_embedding,
     update_embedding,
+)
+from app.services.summary_service import (
+    build_document_embedding_text,
+    summarize_and_store_document_metadata,
 )
 
 logger = logging.getLogger(__name__)
@@ -70,7 +74,7 @@ def safely_index_note(note: Note) -> None:
     try:
         add_note_embedding(note.id, note.title, note.content)
     except Exception:
-       logger.exception("Failed to index note %s", note.id)
+        logger.exception("Failed to index note %s", note.id)
 
 
 def safely_index_document(document: Document) -> None:
@@ -78,9 +82,25 @@ def safely_index_document(document: Document) -> None:
         return
 
     try:
-        add_document_embedding(document.id, document.filename, document.text_content)
+        add_document_embedding(
+            document.id,
+            document.filename,
+            build_document_embedding_text(document),
+        )
     except Exception:
-       logger.exception("Failed to index document %s", document.id)
+        logger.exception("Failed to index document %s", document.id)
+
+
+def safely_summarize_document(document: Document, session: Session) -> None:
+    if document.id is None:
+        return
+
+    try:
+        summarize_and_store_document_metadata(document, session)
+        safely_index_document(document)
+    except Exception:
+        session.rollback()
+        logger.exception("Failed to summarize document %s", document.id)
 
 
 def safely_update_note_embedding(note: Note) -> None:
@@ -95,7 +115,7 @@ def safely_update_note_embedding(note: Note) -> None:
             text=f"{note.title}\n{note.content}",
         )
     except Exception:
-       logger.exception("Failed to update embedding for note %s", note.id)
+        logger.exception("Failed to update embedding for note %s", note.id)
 
 
 def safely_delete_embedding(source_type: str, source_id: int | None) -> None:
@@ -229,6 +249,7 @@ def upload_document(session: SessionDep, file: UploadFile = File(...)):
     session.commit()
     session.refresh(document)
     safely_index_document(document)
+    safely_summarize_document(document, session)
 
     return {
         "status": "saved",
@@ -256,6 +277,11 @@ def search_documents(q: str, session: SessionDep):
         or_(
             Document.filename.contains(q),
             Document.text_content.contains(q),
+            Document.short_summary.contains(q),
+            Document.detailed_summary.contains(q),
+            Document.key_concepts.contains(q),
+            Document.keywords.contains(q),
+            Document.suggested_questions.contains(q),
         )
     )
 
@@ -313,6 +339,7 @@ def import_youtube_transcript(request: YouTubeImportRequest, session: SessionDep
     session.commit()
     session.refresh(document)
     safely_index_document(document)
+    safely_summarize_document(document, session)
 
     return {
         "status": "saved",
