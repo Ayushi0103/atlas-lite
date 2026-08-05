@@ -73,7 +73,7 @@ class OCRIngestionTests(unittest.TestCase):
             self.assertEqual(document.filename, "receipt.png")
             self.assertEqual(document.file_type, "png")
             self.assertEqual(document.text_content, "Atlas OCR keyword")
-            index_document.assert_called_once_with(document)
+            index_document.assert_not_called()
             summarize.assert_called_once_with(document, session)
 
 

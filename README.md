@@ -73,6 +73,23 @@ This repository is built incrementally using feature branches and sprint-based d
 
 ---
 
+## Supported Upload Types
+
+Atlas Lite can ingest uploaded files as searchable documents.
+
+- TXT
+- PDF
+- DOCX
+- Markdown
+- Images with OCR (`png`, `jpg`, `jpeg`, `webp`)
+- Audio with Whisper (`mp3`, `wav`, `m4a`, `flac`, `ogg`)
+
+Uploaded files are saved through the shared `/documents` endpoint, converted into
+text, summarized, enriched with keywords, key concepts, and suggested questions,
+embedded, indexed for semantic search, and made available to RAG chat.
+
+---
+
 ## YouTube Connector
 
 Atlas Lite can import a YouTube transcript as a normal searchable document.
@@ -176,3 +193,50 @@ If OCR cannot extract readable text, Atlas Lite returns `400 Bad Request` with:
 ```text
 Could not extract readable text from image.
 ```
+
+---
+
+## Audio Transcription Ingestion
+
+Atlas Lite can upload audio files and convert speech into normal searchable
+documents using Faster Whisper.
+
+Supported audio formats:
+
+- `mp3`
+- `wav`
+- `m4a`
+- `flac`
+- `ogg`
+
+Audio workflow:
+
+```text
+Audio upload
+Whisper transcription
+Create Document
+Save transcript as text_content
+Generate AI summary
+Generate keywords, key concepts, and suggested questions
+Generate embeddings
+Index for semantic search
+Search through RAG
+```
+
+The audio upload uses the same `/documents` endpoint as TXT, MD, PDF, DOCX, and
+image files:
+
+```http
+POST /documents
+Content-Type: multipart/form-data
+```
+
+Dependencies:
+
+- `faster-whisper` runs speech-to-text transcription.
+- `ctranslate2` provides the inference runtime used by Faster Whisper.
+- The Whisper model is loaded lazily in CPU mode and cached after the first
+  audio upload.
+
+If transcription fails or produces no readable speech, Atlas Lite returns
+`400 Bad Request` with a meaningful error message.

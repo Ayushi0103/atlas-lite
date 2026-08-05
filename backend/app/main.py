@@ -35,13 +35,22 @@ from app.services.summary_service import (
     build_document_embedding_text,
     summarize_and_store_document_metadata,
 )
+from app.services.transcription import AudioTranscriptionError, transcribe_audio
 
 logger = logging.getLogger(__name__)
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 UPLOAD_DIR = ROOT_DIR / "uploads"
 SUPPORTED_IMAGE_TYPES = {"png", "jpg", "jpeg", "webp"}
-SUPPORTED_DOCUMENT_TYPES = {"txt", "pdf", "docx", "md", *SUPPORTED_IMAGE_TYPES}
+SUPPORTED_AUDIO_TYPES = {"mp3", "wav", "m4a", "flac", "ogg"}
+SUPPORTED_DOCUMENT_TYPES = {
+    "txt",
+    "pdf",
+    "docx",
+    "md",
+    *SUPPORTED_IMAGE_TYPES,
+    *SUPPORTED_AUDIO_TYPES,
+}
 
 
 @asynccontextmanager
@@ -89,6 +98,8 @@ def safely_index_document(document: Document) -> None:
             document.filename,
             build_document_embedding_text(document),
         )
+        logger.info("Embeddings generated for document %s", document.id)
+        logger.info("Document indexed: %s", document.id)
     except Exception:
         logger.exception("Failed to index document %s", document.id)
 
@@ -99,6 +110,7 @@ def safely_summarize_document(document: Document, session: Session) -> None:
 
     try:
         summarize_and_store_document_metadata(document, session)
+        logger.info("Summary generated for document %s", document.id)
         safely_index_document(document)
     except Exception:
         session.rollback()
@@ -137,7 +149,7 @@ def get_document_file_type(filename: str) -> str:
             status_code=400,
             detail=(
                 "Unsupported file type. Upload a TXT, MD, PDF, DOCX, PNG, JPG, "
-                "JPEG, or WEBP file."
+                "JPEG, WEBP, MP3, WAV, M4A, FLAC, or OGG file."
             ),
         )
 
@@ -159,6 +171,15 @@ def save_upload_file(upload_file: UploadFile) -> Path:
 
 
 def extract_text_from_document(file_path: Path, file_type: str) -> str:
+    if file_type in SUPPORTED_AUDIO_TYPES:
+        text = transcribe_audio(str(file_path))
+        if not text.strip():
+            raise AudioTranscriptionError(
+                "Could not extract readable speech from audio."
+            )
+
+        return text
+
     if file_type in SUPPORTED_IMAGE_TYPES:
         text = extract_text_from_image(str(file_path))
         if not text.strip():
@@ -241,10 +262,19 @@ def upload_document(session: SessionDep, file: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail="Filename is required")
 
     file_type = get_document_file_type(file.filename)
+    if file_type in SUPPORTED_AUDIO_TYPES:
+        logger.info("Audio upload started: %s", file.filename)
+
     saved_path = save_upload_file(file)
 
     try:
         text_content = extract_text_from_document(saved_path, file_type)
+    except AudioTranscriptionError as exc:
+        saved_path.unlink(missing_ok=True)
+        raise HTTPException(
+            status_code=400,
+            detail=str(exc) or "Could not transcribe audio file.",
+        ) from exc
     except OCRExtractionError as exc:
         saved_path.unlink(missing_ok=True)
         raise HTTPException(
