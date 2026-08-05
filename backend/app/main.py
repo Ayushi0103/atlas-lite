@@ -30,6 +30,7 @@ from app.services.embedding import (
     delete_embedding,
     update_embedding,
 )
+from app.services.ocr import OCRExtractionError, extract_text_from_image
 from app.services.summary_service import (
     build_document_embedding_text,
     summarize_and_store_document_metadata,
@@ -39,7 +40,8 @@ logger = logging.getLogger(__name__)
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 UPLOAD_DIR = ROOT_DIR / "uploads"
-SUPPORTED_DOCUMENT_TYPES = {"txt", "pdf", "docx", "md"}
+SUPPORTED_IMAGE_TYPES = {"png", "jpg", "jpeg", "webp"}
+SUPPORTED_DOCUMENT_TYPES = {"txt", "pdf", "docx", "md", *SUPPORTED_IMAGE_TYPES}
 
 
 @asynccontextmanager
@@ -133,7 +135,10 @@ def get_document_file_type(filename: str) -> str:
     if file_type not in SUPPORTED_DOCUMENT_TYPES:
         raise HTTPException(
             status_code=400,
-            detail="Unsupported file type. Upload a TXT, MD, PDF, or DOCX file.",
+            detail=(
+                "Unsupported file type. Upload a TXT, MD, PDF, DOCX, PNG, JPG, "
+                "JPEG, or WEBP file."
+            ),
         )
 
     return file_type
@@ -154,6 +159,13 @@ def save_upload_file(upload_file: UploadFile) -> Path:
 
 
 def extract_text_from_document(file_path: Path, file_type: str) -> str:
+    if file_type in SUPPORTED_IMAGE_TYPES:
+        text = extract_text_from_image(str(file_path))
+        if not text.strip():
+            raise OCRExtractionError("Could not extract readable text from image.")
+
+        return text
+
     if file_type in {"txt", "md"}:
         return file_path.read_text(encoding="utf-8", errors="replace")
 
@@ -233,6 +245,12 @@ def upload_document(session: SessionDep, file: UploadFile = File(...)):
 
     try:
         text_content = extract_text_from_document(saved_path, file_type)
+    except OCRExtractionError as exc:
+        saved_path.unlink(missing_ok=True)
+        raise HTTPException(
+            status_code=400,
+            detail="Could not extract readable text from image.",
+        ) from exc
     except Exception as exc:
         saved_path.unlink(missing_ok=True)
         raise HTTPException(
@@ -248,7 +266,6 @@ def upload_document(session: SessionDep, file: UploadFile = File(...)):
     session.add(document)
     session.commit()
     session.refresh(document)
-    safely_index_document(document)
     safely_summarize_document(document, session)
 
     return {
@@ -338,7 +355,6 @@ def import_youtube_transcript(request: YouTubeImportRequest, session: SessionDep
     session.add(document)
     session.commit()
     session.refresh(document)
-    safely_index_document(document)
     safely_summarize_document(document, session)
 
     return {

@@ -71,7 +71,7 @@ class Document(SQLModel, table=True):
     # Original filename provided at upload time.
     filename: str
 
-    # Normalized file extension: txt, md, pdf, or docx.
+    # Normalized file extension for uploaded documents and supported images.
     file_type: str
 
     # Path to the saved upload on disk.

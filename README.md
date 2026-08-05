@@ -129,3 +129,50 @@ Notes:
 - Only `youtube.com` and `youtu.be` URLs are accepted.
 - Duplicate video imports return `409 Conflict`.
 - Videos without available transcripts return `422 Unprocessable Entity`.
+
+---
+
+## OCR Image Ingestion
+
+Atlas Lite can upload images and convert readable text into normal searchable
+documents.
+
+Supported image formats:
+
+- `png`
+- `jpg`
+- `jpeg`
+- `webp`
+
+OCR workflow:
+
+```text
+Image upload
+OCR extraction
+Create Document
+Save extracted text as text_content
+Generate AI summary
+Generate embeddings
+Search through RAG
+```
+
+The image upload uses the same `/documents` endpoint as TXT, MD, PDF, and DOCX
+files:
+
+```http
+POST /documents
+Content-Type: multipart/form-data
+```
+
+Dependencies:
+
+- `Pillow` opens and validates image files.
+- `pytesseract` sends images to the Tesseract OCR engine.
+- The Tesseract executable must be installed on the host system and available
+  on `PATH`.
+
+If OCR cannot extract readable text, Atlas Lite returns `400 Bad Request` with:
+
+```text
+Could not extract readable text from image.
+```
