@@ -8,6 +8,7 @@ from sqlmodel import Session
 
 from app.models import Document
 from app.services.groq_client import generate_chat_completion
+from app.services.knowledge_graph import generate_knowledge_graph_for_document
 
 
 logger = logging.getLogger(__name__)
@@ -103,6 +104,17 @@ def summarize_and_store_document_metadata(
     session.refresh(document)
 
     logger.info("Stored AI summary metadata for document %s", document.id)
+
+    try:
+        generate_knowledge_graph_for_document(document, session)
+    except Exception:
+        session.rollback()
+        logger.exception(
+            "Failed to generate knowledge graph for document %s",
+            document.id,
+            extra={"document_id": document.id},
+        )
+
     return summary
 
 

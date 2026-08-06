@@ -1,7 +1,7 @@
 from datetime import datetime
 
 # Import SQLModel, Field, and Relationship.
-from sqlalchemy import Column, Text
+from sqlalchemy import Column, String, Text, UniqueConstraint
 from sqlmodel import SQLModel, Field, Relationship
 
 
@@ -106,6 +106,51 @@ class Document(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.now)
 
     updated_at: datetime = Field(default_factory=datetime.now)
+
+
+class KnowledgeGraphNode(SQLModel, table=True):
+    __tablename__ = "knowledge_graph_node"
+    __table_args__ = (
+        UniqueConstraint("name", "type", name="uq_knowledge_graph_node_name_type"),
+    )
+
+    id: int | None = Field(default=None, primary_key=True)
+
+    name: str = Field(sa_column=Column(String(collation="NOCASE"), nullable=False))
+
+    type: str = Field(sa_column=Column(String(collation="NOCASE"), nullable=False))
+
+    created_at: datetime = Field(default_factory=datetime.now)
+
+
+class KnowledgeGraphEdge(SQLModel, table=True):
+    __tablename__ = "knowledge_graph_edge"
+    __table_args__ = (
+        UniqueConstraint(
+            "source_node_id",
+            "target_node_id",
+            "relationship",
+            name="uq_knowledge_graph_edge_relationship",
+        ),
+    )
+
+    id: int | None = Field(default=None, primary_key=True)
+
+    source_node_id: int = Field(
+        foreign_key="knowledge_graph_node.id",
+        index=True,
+        ondelete="CASCADE",
+    )
+
+    target_node_id: int = Field(
+        foreign_key="knowledge_graph_node.id",
+        index=True,
+        ondelete="CASCADE",
+    )
+
+    relationship: str = Field(sa_column=Column(String(collation="NOCASE"), nullable=False))
+
+    created_at: datetime = Field(default_factory=datetime.now)
 
 
 class Conversation(SQLModel, table=True):

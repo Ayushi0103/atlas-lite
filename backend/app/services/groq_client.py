@@ -65,6 +65,8 @@ def generate_chat_completion(
     started_at = time.perf_counter()
 
     try:
+        print("Using model:", model)
+        
         response = client.chat.completions.create(
             model=model,
             messages=messages,
@@ -78,6 +80,10 @@ def generate_chat_completion(
         logger.info("Groq response latency: %.2f ms", latency_ms)
 
     try:
+        print("\n=========== FULL GROQ RESPONSE ===========")
+        print(response)
+        print("==========================================\n")
+
         answer = response.choices[0].message.content
     except (AttributeError, IndexError) as exc:
         logger.exception("Groq response did not include an answer")
