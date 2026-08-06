@@ -21,6 +21,7 @@ from app.connectors.youtube import (
 )
 from app.database import SessionDep, create_db_and_tables
 from app.models import Collection, CollectionNote, Document, Note
+from app.routes.agent import router as agent_router
 from app.routes.ai import router as ai_router
 from app.routes.conversations import router as conversations_router
 from app.routes.knowledge_graph import router as knowledge_graph_router
@@ -600,3 +601,4 @@ app.include_router(search_router)
 app.include_router(conversations_router)
 app.include_router(ai_router)
 app.include_router(knowledge_graph_router)
+app.include_router(agent_router)

@@ -37,25 +37,25 @@ class YouTubeConnectorTests(unittest.TestCase):
 
     def test_successful_import_stores_document_and_is_searchable(self):
         transcript = YouTubeTranscript(
-            video_id="abc123xyz",
-            source_url=normalize_source_url("abc123xyz"),
-            filename="abc123xyz",
+            video_id="abc123xyzAB",
+            source_url=normalize_source_url("abc123xyzAB"),
+            filename="abc123xyzAB",
             text_content="Atlas transcript keyword",
         )
 
         with self.get_session() as session:
             with patch("app.main.download_transcript", return_value=transcript):
                 response = import_youtube_transcript(
-                    YouTubeImportRequest(url="https://youtu.be/abc123xyz"),
+                    YouTubeImportRequest(url="https://youtu.be/abc123xyzAB"),
                     session,
                 )
 
             document = response["document"]
             self.assertEqual(response["status"], "saved")
-            self.assertEqual(document.filename, "abc123xyz")
+            self.assertEqual(document.filename, "abc123xyzAB")
             self.assertEqual(document.file_type, "youtube")
             self.assertEqual(document.file_path, "")
-            self.assertEqual(document.source_url, "https://youtu.be/abc123xyz")
+            self.assertEqual(document.source_url, "https://youtu.be/abc123xyzAB")
             self.assertEqual(document.text_content, "Atlas transcript keyword")
 
             search_results = search_documents("keyword", session)
@@ -76,7 +76,7 @@ class YouTubeConnectorTests(unittest.TestCase):
         with self.get_session() as session:
             with self.assertRaises(HTTPException) as exc:
                 import_youtube_transcript(
-                    YouTubeImportRequest(url="https://studio.youtube.com/video/abc123xyz"),
+                    YouTubeImportRequest(url="https://studio.youtube.com/video/abc123xyzAB"),
                     session,
                 )
 
@@ -86,10 +86,10 @@ class YouTubeConnectorTests(unittest.TestCase):
         with self.get_session() as session:
             session.add(
                 Document(
-                    filename="abc123xyz",
+                    filename="abc123xyzAB",
                     file_type="youtube",
                     file_path="",
-                    source_url="https://youtu.be/abc123xyz",
+                    source_url="https://youtu.be/abc123xyzAB",
                     text_content="Already imported",
                 )
             )
@@ -99,7 +99,7 @@ class YouTubeConnectorTests(unittest.TestCase):
                 with self.assertRaises(HTTPException) as exc:
                     import_youtube_transcript(
                         YouTubeImportRequest(
-                            url="https://www.youtube.com/watch?v=abc123xyz"
+                            url="https://www.youtube.com/watch?v=abc123xyzAB"
                         ),
                         session,
                     )
@@ -117,7 +117,7 @@ class YouTubeConnectorTests(unittest.TestCase):
             ):
                 with self.assertRaises(HTTPException) as exc:
                     import_youtube_transcript(
-                        YouTubeImportRequest(url="https://youtu.be/abc123xyz"),
+                        YouTubeImportRequest(url="https://youtu.be/abc123xyzAB"),
                         session,
                     )
 
@@ -133,7 +133,7 @@ class YouTubeConnectorTests(unittest.TestCase):
             ):
                 with self.assertRaises(HTTPException) as exc:
                     import_youtube_transcript(
-                        YouTubeImportRequest(url="https://youtu.be/abc123xyz"),
+                        YouTubeImportRequest(url="https://youtu.be/abc123xyzAB"),
                         session,
                     )
 
@@ -147,7 +147,7 @@ class YouTubeConnectorTests(unittest.TestCase):
             ):
                 with self.assertRaises(HTTPException) as exc:
                     import_youtube_transcript(
-                        YouTubeImportRequest(url="https://youtu.be/abc123xyz"),
+                        YouTubeImportRequest(url="https://youtu.be/abc123xyzAB"),
                         session,
                     )
 
