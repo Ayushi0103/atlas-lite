@@ -10,3 +10,8 @@ __pycache__/
 
 # SQLite databases
 *.db
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+*.tsbuildinfo
