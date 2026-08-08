@@ -186,6 +186,52 @@ a:focus-visible {
   font-size: 0.78rem;
 }
 
+.filter-dropdown {
+  position: relative;
+}
+
+.filter-dropdown .filter-button {
+  width: 100%;
+}
+
+.filter-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 20;
+  display: grid;
+  gap: 2px;
+  min-width: 168px;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(24px);
+  box-shadow: 0 20px 48px rgba(33, 31, 78, 0.18);
+}
+
+.filter-menu-item {
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: #33314f;
+  font-size: 0.8rem;
+  font-weight: 650;
+  text-align: left;
+}
+
+.filter-menu-item:hover {
+  background: rgba(111, 85, 221, 0.12);
+}
+
+.filter-menu-item.is-selected {
+  color: #5d49cf;
+  background: rgba(111, 85, 221, 0.16);
+}
+
 .side-rail {
   position: absolute;
   top: clamp(120px, 15vh, 190px);
