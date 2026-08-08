@@ -1,12 +1,18 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { askAtlas, getDocuments, semanticSearch, uploadDocument } from "../services/atlasApi";
-import type { DocumentFile, SearchState } from "../types/atlas";
+import type { DocumentFile, SearchFilters, SearchState } from "../types/atlas";
 
 const emptySearch: SearchState = {
   query: "",
   answer: "",
   sources: [],
   semanticResults: [],
+};
+
+const defaultFilters: SearchFilters = {
+  scope: "all",
+  fileType: null,
+  since: "all",
 };
 
 function parseStringList(value?: string | null): string[] {
@@ -26,6 +32,7 @@ export function useAtlasSearch() {
   const [isLoading, setIsLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [filters, setFilters] = useState<SearchFilters>(defaultFilters);
 
   const refreshDocuments = useCallback(async () => {
     try {
@@ -55,8 +62,8 @@ export function useAtlasSearch() {
 
     try {
       const [answer, semanticResults] = await Promise.all([
-        askAtlas(cleaned),
-        semanticSearch(cleaned),
+        askAtlas(cleaned, filters),
+        semanticSearch(cleaned, 6, filters),
       ]);
 
       setSearch({
@@ -70,7 +77,7 @@ export function useAtlasSearch() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [filters]);
 
   const handleUpload = useCallback(async (file: File) => {
     setIsUploading(true);
@@ -88,12 +95,14 @@ export function useAtlasSearch() {
   return {
     documents,
     error,
+    filters,
     handleUpload,
     isLoading,
     isSheetOpen,
     isUploading,
     promptSuggestions,
     search,
+    setFilters,
     setIsSheetOpen,
     submitSearch,
   };

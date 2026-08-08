@@ -1,5 +1,6 @@
+import { forwardRef } from "react";
 import { PromptChip } from "./PromptChip";
-import { SearchBar } from "./SearchBar";
+import { SearchBar, type SearchBarHandle } from "./SearchBar";
 
 type HeroSectionProps = {
   isLoading: boolean;
@@ -8,13 +9,16 @@ type HeroSectionProps = {
   onSearch: (query: string) => void;
 };
 
-export function HeroSection({ isLoading, prompts, onPrompt, onSearch }: HeroSectionProps) {
+export const HeroSection = forwardRef<SearchBarHandle, HeroSectionProps>(function HeroSection(
+  { isLoading, prompts, onPrompt, onSearch },
+  ref,
+) {
   return (
     <main className="hero-section" aria-label="Atlas Lite home">
       <h1>Atlas lite</h1>
       <p>Your second brain.</p>
       <p>Ask anything — find everything.</p>
-      <SearchBar disabled={isLoading} onSubmit={onSearch} />
+      <SearchBar disabled={isLoading} onSubmit={onSearch} ref={ref} />
       <div className="prompt-row" aria-label="Suggested prompts">
         {prompts.length > 0 ? (
           <>
@@ -27,4 +31,4 @@ export function HeroSection({ isLoading, prompts, onPrompt, onSearch }: HeroSect
       </div>
     </main>
   );
-}
+});

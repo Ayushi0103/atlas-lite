@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useRef, useState } from "react";
+import { FormEvent, forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { ArrowUpRightIcon, SparkleIcon } from "./Icons";
 
 type SearchBarProps = {
@@ -7,9 +7,20 @@ type SearchBarProps = {
   onSubmit: (query: string) => void;
 };
 
-export function SearchBar({ disabled = false, initialValue = "", onSubmit }: SearchBarProps) {
+export type SearchBarHandle = {
+  focus: () => void;
+};
+
+export const SearchBar = forwardRef<SearchBarHandle, SearchBarProps>(function SearchBar(
+  { disabled = false, initialValue = "", onSubmit },
+  ref,
+) {
   const [query, setQuery] = useState(initialValue);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useImperativeHandle(ref, () => ({
+    focus: () => inputRef.current?.focus(),
+  }));
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -44,4 +55,4 @@ export function SearchBar({ disabled = false, initialValue = "", onSubmit }: Sea
       </button>
     </form>
   );
-}
+});

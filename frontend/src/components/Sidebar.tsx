@@ -1,16 +1,24 @@
+import type { ReactElement } from "react";
 import { BellIcon, ChatIcon, GridIcon, HomeIcon, MoonIcon, SearchIcon, SettingsIcon, SunIcon } from "./Icons";
+import type { AppView } from "../types/atlas";
 
 type SidebarProps = {
-  onHome: () => void;
-  isSheetOpen: boolean;
+  currentView: AppView;
+  onNavigate: (view: AppView) => void;
 };
 
-export function Sidebar({ onHome, isSheetOpen }: SidebarProps) {
-  const items = [
-    { label: "Home", icon: <HomeIcon />, action: onHome, active: !isSheetOpen },
-    { label: "Search", icon: <SearchIcon />, active: isSheetOpen },
-    { label: "Collections", icon: <GridIcon /> },
-    { label: "Chat", icon: <ChatIcon /> },
+type NavItem = {
+  label: string;
+  icon: ReactElement;
+  view: AppView;
+};
+
+export function Sidebar({ currentView, onNavigate }: SidebarProps) {
+  const items: NavItem[] = [
+    { label: "Home", icon: <HomeIcon />, view: "home" },
+    { label: "Search", icon: <SearchIcon />, view: "search" },
+    { label: "Collections", icon: <GridIcon />, view: "collections" },
+    { label: "Chat", icon: <ChatIcon />, view: "chat" },
   ];
 
   return (
@@ -18,11 +26,11 @@ export function Sidebar({ onHome, isSheetOpen }: SidebarProps) {
       <div className="side-group">
         {items.map((item) => (
           <button
-            aria-current={item.active ? "page" : undefined}
+            aria-current={currentView === item.view ? "page" : undefined}
             aria-label={item.label}
-            className={`rail-button ${item.active ? "is-active" : ""}`}
+            className={`rail-button ${currentView === item.view ? "is-active" : ""}`}
             key={item.label}
-            onClick={item.action}
+            onClick={() => onNavigate(item.view)}
             title={item.label}
             type="button"
           >
