@@ -23,9 +23,11 @@ from app.database import SessionDep, create_db_and_tables
 from app.models import Collection, CollectionNote, Document, Note
 from app.routes.agent import router as agent_router
 from app.routes.ai import router as ai_router
+from app.routes.auth import router as auth_router
 from app.routes.conversations import router as conversations_router
 from app.routes.knowledge_graph import router as knowledge_graph_router
 from app.routes.search import router as search_router
+from app.services.auth import CurrentUser
 from app.services.embedding import (
     add_document_embedding,
     add_note_embedding,
@@ -85,7 +87,7 @@ def safely_index_note(note: Note) -> None:
         return
 
     try:
-        add_note_embedding(note.id, note.title, note.content)
+        add_note_embedding(note.id, note.user_id, note.title, note.content)
     except Exception:
         logger.exception("Failed to index note %s", note.id)
 
@@ -97,6 +99,7 @@ def safely_index_document(document: Document) -> None:
     try:
         add_document_embedding(
             document.id,
+            document.user_id,
             document.filename,
             build_document_embedding_text(document),
         )
@@ -127,6 +130,7 @@ def safely_update_note_embedding(note: Note) -> None:
         update_embedding(
             source_type="note",
             source_id=note.id,
+            user_id=note.user_id,
             title=note.title,
             text=f"{note.title}\n{note.content}",
         )
@@ -209,8 +213,13 @@ def read_root():
 
 
 @app.post("/notes")
-def save_note(note: NoteCreate, session: SessionDep):
-    new_note = Note(title=note.title, content=note.content, tags=note.tags)
+def save_note(note: NoteCreate, session: SessionDep, current_user: CurrentUser):
+    new_note = Note(
+        user_id=current_user.id,  # type: ignore[arg-type]
+        title=note.title,
+        content=note.content,
+        tags=note.tags,
+    )
     session.add(new_note)
     session.commit()
     session.refresh(new_note)
@@ -223,13 +232,14 @@ def save_note(note: NoteCreate, session: SessionDep):
 
 
 @app.get("/notes")
-def get_notes(session: SessionDep):
-    return session.exec(select(Note)).all()
+def get_notes(session: SessionDep, current_user: CurrentUser):
+    statement = select(Note).where(Note.user_id == current_user.id)
+    return session.exec(statement).all()
 
 
 # Register a GET endpoint for searching notes.
 @app.get("/notes/search")
-def search_notes(q: str, session: SessionDep):
+def search_notes(q: str, session: SessionDep, current_user: CurrentUser):
     q = q.strip()
 
     if not q:
@@ -239,27 +249,28 @@ def search_notes(q: str, session: SessionDep):
         )
 
     statement = select(Note).where(
+        Note.user_id == current_user.id,
         or_(
             Note.title.contains(q),
             Note.content.contains(q),
             Note.tags.contains(q),
-        )
+        ),
     )
 
     return session.exec(statement).all()
 
 
 @app.get("/notes/{note_id}")
-def get_note(note_id: int, session: SessionDep):
+def get_note(note_id: int, session: SessionDep, current_user: CurrentUser):
     note = session.get(Note, note_id)
-    if note is None:
+    if note is None or note.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Note not found")
 
     return note
 
 
 @app.post("/documents", status_code=status.HTTP_201_CREATED)
-def upload_document(session: SessionDep, file: UploadFile = File(...)):
+def upload_document(session: SessionDep, current_user: CurrentUser, file: UploadFile = File(...)):
     if file.filename is None:
         raise HTTPException(status_code=400, detail="Filename is required")
 
@@ -290,6 +301,7 @@ def upload_document(session: SessionDep, file: UploadFile = File(...)):
         ) from exc
 
     document = Document(
+        user_id=current_user.id,  # type: ignore[arg-type]
         filename=Path(file.filename).name,
         file_type=file_type,
         file_path=str(saved_path.relative_to(ROOT_DIR)),
@@ -307,13 +319,17 @@ def upload_document(session: SessionDep, file: UploadFile = File(...)):
 
 
 @app.get("/documents")
-def get_documents(session: SessionDep):
-    statement = select(Document).order_by(Document.created_at.desc())
+def get_documents(session: SessionDep, current_user: CurrentUser):
+    statement = (
+        select(Document)
+        .where(Document.user_id == current_user.id)
+        .order_by(Document.created_at.desc())
+    )
     return session.exec(statement).all()
 
 
 @app.get("/documents/search")
-def search_documents(q: str, session: SessionDep):
+def search_documents(q: str, session: SessionDep, current_user: CurrentUser):
     q = q.strip()
 
     if not q:
@@ -323,6 +339,7 @@ def search_documents(q: str, session: SessionDep):
         )
 
     statement = select(Document).where(
+        Document.user_id == current_user.id,
         or_(
             Document.filename.contains(q),
             Document.text_content.contains(q),
@@ -331,23 +348,27 @@ def search_documents(q: str, session: SessionDep):
             Document.key_concepts.contains(q),
             Document.keywords.contains(q),
             Document.suggested_questions.contains(q),
-        )
+        ),
     )
 
     return session.exec(statement).all()
 
 
 @app.get("/documents/{document_id}")
-def get_document(document_id: int, session: SessionDep):
+def get_document(document_id: int, session: SessionDep, current_user: CurrentUser):
     document = session.get(Document, document_id)
-    if document is None:
+    if document is None or document.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Document not found")
 
     return document
 
 
 @app.post("/connectors/youtube", status_code=status.HTTP_201_CREATED)
-def import_youtube_transcript(request: YouTubeImportRequest, session: SessionDep):
+def import_youtube_transcript(
+    request: YouTubeImportRequest,
+    session: SessionDep,
+    current_user: CurrentUser,
+):
     try:
         video_id = extract_video_id(request.url)
     except InvalidYouTubeUrlError as exc:
@@ -355,7 +376,10 @@ def import_youtube_transcript(request: YouTubeImportRequest, session: SessionDep
 
     source_url = normalize_source_url(video_id)
     existing_document = session.exec(
-        select(Document).where(Document.source_url == source_url)
+        select(Document).where(
+            Document.source_url == source_url,
+            Document.user_id == current_user.id,
+        )
     ).first()
     if existing_document is not None:
         raise HTTPException(
@@ -378,6 +402,7 @@ def import_youtube_transcript(request: YouTubeImportRequest, session: SessionDep
         ) from exc
 
     document = Document(
+        user_id=current_user.id,  # type: ignore[arg-type]
         filename=transcript.filename,
         file_type="youtube",
         file_path="",
@@ -396,15 +421,15 @@ def import_youtube_transcript(request: YouTubeImportRequest, session: SessionDep
 
 
 @app.delete("/documents/{document_id}")
-def delete_document(document_id: int, session: SessionDep):
+def delete_document(document_id: int, session: SessionDep, current_user: CurrentUser):
     document = session.get(Document, document_id)
 
-    if document is None:
+    if document is None or document.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Document not found")
 
     file_path = ROOT_DIR / document.file_path
 
-    if file_path.exists():
+    if document.file_path and file_path.exists():
         file_path.unlink()
 
     document_id = document.id
@@ -419,9 +444,14 @@ def delete_document(document_id: int, session: SessionDep):
 
 
 @app.put("/notes/{note_id}")
-def update_note(note_id: int, updated_note: NoteCreate, session: SessionDep):
+def update_note(
+    note_id: int,
+    updated_note: NoteCreate,
+    session: SessionDep,
+    current_user: CurrentUser,
+):
     note = session.get(Note, note_id)
-    if note is None:
+    if note is None or note.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Note not found")
 
     note.title = updated_note.title
@@ -440,9 +470,9 @@ def update_note(note_id: int, updated_note: NoteCreate, session: SessionDep):
 
 
 @app.delete("/notes/{note_id}")
-def delete_note(note_id: int, session: SessionDep):
+def delete_note(note_id: int, session: SessionDep, current_user: CurrentUser):
     note = session.get(Note, note_id)
-    if note is None:
+    if note is None or note.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Note not found")
 
     note_id = note.id
@@ -457,8 +487,13 @@ def delete_note(note_id: int, session: SessionDep):
 
 
 @app.post("/collections")
-def create_collection(collection: CollectionCreate, session: SessionDep):
+def create_collection(
+    collection: CollectionCreate,
+    session: SessionDep,
+    current_user: CurrentUser,
+):
     new_collection = Collection(
+        user_id=current_user.id,  # type: ignore[arg-type]
         name=collection.name,
         description=collection.description,
     )
@@ -473,14 +508,15 @@ def create_collection(collection: CollectionCreate, session: SessionDep):
 
 
 @app.get("/collections")
-def get_collections(session: SessionDep):
-    return session.exec(select(Collection)).all()
+def get_collections(session: SessionDep, current_user: CurrentUser):
+    statement = select(Collection).where(Collection.user_id == current_user.id)
+    return session.exec(statement).all()
 
 
 @app.get("/collections/{collection_id}")
-def get_collection(collection_id: int, session: SessionDep):
+def get_collection(collection_id: int, session: SessionDep, current_user: CurrentUser):
     collection = session.get(Collection, collection_id)
-    if collection is None:
+    if collection is None or collection.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Collection not found")
 
     return collection
@@ -488,10 +524,13 @@ def get_collection(collection_id: int, session: SessionDep):
 
 @app.put("/collections/{collection_id}")
 def update_collection(
-    collection_id: int, updated_collection: CollectionCreate, session: SessionDep
+    collection_id: int,
+    updated_collection: CollectionCreate,
+    session: SessionDep,
+    current_user: CurrentUser,
 ):
     collection = session.get(Collection, collection_id)
-    if collection is None:
+    if collection is None or collection.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Collection not found")
 
     collection.name = updated_collection.name
@@ -508,9 +547,9 @@ def update_collection(
 
 
 @app.delete("/collections/{collection_id}")
-def delete_collection(collection_id: int, session: SessionDep):
+def delete_collection(collection_id: int, session: SessionDep, current_user: CurrentUser):
     collection = session.get(Collection, collection_id)
-    if collection is None:
+    if collection is None or collection.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Collection not found")
 
     session.delete(collection)
@@ -523,13 +562,18 @@ def delete_collection(collection_id: int, session: SessionDep):
 
 
 @app.post("/collections/{collection_id}/notes/{note_id}")
-def attach_note_to_collection(collection_id: int, note_id: int, session: SessionDep):
+def attach_note_to_collection(
+    collection_id: int,
+    note_id: int,
+    session: SessionDep,
+    current_user: CurrentUser,
+):
     collection = session.get(Collection, collection_id)
-    if collection is None:
+    if collection is None or collection.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Collection not found")
 
     note = session.get(Note, note_id)
-    if note is None:
+    if note is None or note.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Note not found")
 
     existing_link = session.exec(
@@ -555,13 +599,18 @@ def attach_note_to_collection(collection_id: int, note_id: int, session: Session
 
 
 @app.delete("/collections/{collection_id}/notes/{note_id}")
-def detach_note_from_collection(collection_id: int, note_id: int, session: SessionDep):
+def detach_note_from_collection(
+    collection_id: int,
+    note_id: int,
+    session: SessionDep,
+    current_user: CurrentUser,
+):
     collection = session.get(Collection, collection_id)
-    if collection is None:
+    if collection is None or collection.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Collection not found")
 
     note = session.get(Note, note_id)
-    if note is None:
+    if note is None or note.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Note not found")
 
     collection_note = session.exec(
@@ -583,9 +632,9 @@ def detach_note_from_collection(collection_id: int, note_id: int, session: Sessi
 
 
 @app.get("/collections/{collection_id}/notes")
-def get_collection_notes(collection_id: int, session: SessionDep):
+def get_collection_notes(collection_id: int, session: SessionDep, current_user: CurrentUser):
     collection = session.get(Collection, collection_id)
-    if collection is None:
+    if collection is None or collection.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Collection not found")
 
     statement = (
@@ -597,6 +646,7 @@ def get_collection_notes(collection_id: int, session: SessionDep):
     return session.exec(statement).all()
 
 
+app.include_router(auth_router)
 app.include_router(search_router)
 app.include_router(conversations_router)
 app.include_router(ai_router)

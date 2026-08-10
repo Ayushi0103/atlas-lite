@@ -1,3 +1,15 @@
+export type AuthUser = {
+  id: number;
+  name: string;
+  email: string;
+};
+
+export type AuthResponse = {
+  access_token: string;
+  token_type: string;
+  user: AuthUser;
+};
+
 export type DocumentFile = {
   id: number;
   filename: string;

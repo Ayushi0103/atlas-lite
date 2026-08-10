@@ -43,6 +43,7 @@ class ToolResult:
 class AgentState:
     question: str
     session: Session
+    user_id: int
     conversation_id: int | None = None
     intent: str = "general_question"
     tool_results: list[ToolResult] = field(default_factory=list)
@@ -107,7 +108,7 @@ class SemanticSearchTool:
     name = "SemanticSearch"
 
     def run(self, state: AgentState) -> ToolResult:
-        results = semantic_search(state.question, top_k=TOP_K)
+        results = semantic_search(state.question, state.user_id, top_k=TOP_K)
         logger.info("Search returned %s chunks", len(results))
 
         return ToolResult(
@@ -122,7 +123,7 @@ class KeywordSearchTool:
     name = "KeywordSearch"
 
     def run(self, state: AgentState) -> ToolResult:
-        results = _keyword_search(state.question, state.session)
+        results = _keyword_search(state.question, state.session, state.user_id)
         logger.info("Keyword search returned %s results", len(results))
 
         return ToolResult(
@@ -138,7 +139,7 @@ class KnowledgeGraphTool:
 
     def run(self, state: AgentState) -> ToolResult:
         concept = _extract_lookup_subject(state.question)
-        graph = get_related_concepts(concept, state.session)
+        graph = get_related_concepts(concept, state.session, state.user_id)
         related = graph.get("related", [])
         logger.info("Knowledge graph returned %s nodes", len(related))
 
@@ -154,7 +155,7 @@ class ConversationMemoryTool:
     name = "ConversationMemory"
 
     def run(self, state: AgentState) -> ToolResult:
-        messages = _get_conversation_messages(state.session, state.conversation_id)
+        messages = _get_conversation_messages(state.session, state.conversation_id, state.user_id)
         logger.info("Conversation memory returned %s messages", len(messages))
 
         return ToolResult(
@@ -169,7 +170,7 @@ class DocumentMetadataTool:
     name = "DocumentMetadata"
 
     def run(self, state: AgentState) -> ToolResult:
-        documents = _find_documents(state.question, state.session)
+        documents = _find_documents(state.question, state.session, state.user_id)
         logger.info("Document metadata returned %s documents", len(documents))
 
         return ToolResult(
@@ -184,7 +185,7 @@ class CollectionTool:
     name = "Collections"
 
     def run(self, state: AgentState) -> ToolResult:
-        collections = _find_collections(state.question, state.session)
+        collections = _find_collections(state.question, state.session, state.user_id)
         logger.info("Collections returned %s collections", len(collections))
 
         return ToolResult(
@@ -292,12 +293,14 @@ TOOL_PLANS: dict[str, tuple[str, ...]] = {
 def run_agent(
     question: str,
     session: Session,
+    user_id: int,
     conversation_id: int | None = None,
 ) -> AgentResponse:
     cleaned_question = question.strip()
     state = AgentState(
         question=cleaned_question,
         session=session,
+        user_id=user_id,
         conversation_id=conversation_id,
     )
     state.intent = DEFAULT_INTENT_DETECTOR.detect(cleaned_question)
@@ -332,7 +335,7 @@ def run_agent(
     }
 
 
-def _keyword_search(query: str, session: Session) -> list[dict[str, object]]:
+def _keyword_search(query: str, session: Session, user_id: int) -> list[dict[str, object]]:
     cleaned_query = query.strip()
     if not cleaned_query:
         return []
@@ -340,17 +343,19 @@ def _keyword_search(query: str, session: Session) -> list[dict[str, object]]:
     note_statement = (
         select(Note)
         .where(
+            Note.user_id == user_id,
             or_(
                 Note.title.contains(cleaned_query),
                 Note.content.contains(cleaned_query),
                 Note.tags.contains(cleaned_query),
-            )
+            ),
         )
         .limit(TOP_K)
     )
     document_statement = (
         select(Document)
         .where(
+            Document.user_id == user_id,
             or_(
                 Document.filename.contains(cleaned_query),
                 Document.text_content.contains(cleaned_query),
@@ -359,7 +364,7 @@ def _keyword_search(query: str, session: Session) -> list[dict[str, object]]:
                 Document.key_concepts.contains(cleaned_query),
                 Document.keywords.contains(cleaned_query),
                 Document.suggested_questions.contains(cleaned_query),
-            )
+            ),
         )
         .limit(TOP_K)
     )
@@ -391,11 +396,26 @@ def _keyword_search(query: str, session: Session) -> list[dict[str, object]]:
 def _get_conversation_messages(
     session: Session,
     conversation_id: int | None,
+    user_id: int,
     limit: int = 12,
 ) -> list[Message]:
+    if conversation_id is not None:
+        owned_conversation = session.exec(
+            select(Conversation.id).where(
+                Conversation.id == conversation_id,
+                Conversation.user_id == user_id,
+            )
+        ).first()
+        if owned_conversation is None:
+            return []
+
     statement = select(Message)
     if conversation_id is not None:
         statement = statement.where(Message.conversation_id == conversation_id)
+    else:
+        statement = statement.join(
+            Conversation, Conversation.id == Message.conversation_id
+        ).where(Conversation.user_id == user_id)
 
     statement = statement.order_by(Message.created_at.desc(), Message.id.desc()).limit(limit)
     messages = list(session.exec(statement).all())
@@ -403,9 +423,9 @@ def _get_conversation_messages(
     return messages
 
 
-def _find_documents(question: str, session: Session) -> list[Document]:
+def _find_documents(question: str, session: Session, user_id: int) -> list[Document]:
     subject = _extract_lookup_subject(question)
-    statement = select(Document)
+    statement = select(Document).where(Document.user_id == user_id)
 
     if _is_document_listing_question(question):
         file_type = _extract_file_type(question)
@@ -426,9 +446,9 @@ def _find_documents(question: str, session: Session) -> list[Document]:
     return list(session.exec(statement.order_by(Document.created_at.desc())).all())
 
 
-def _find_collections(question: str, session: Session) -> list[Collection]:
+def _find_collections(question: str, session: Session, user_id: int) -> list[Collection]:
     subject = _extract_lookup_subject(question)
-    statement = select(Collection)
+    statement = select(Collection).where(Collection.user_id == user_id)
 
     if subject and subject.lower() not in {"collection", "collections"}:
         statement = statement.where(

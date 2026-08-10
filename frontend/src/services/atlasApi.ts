@@ -1,5 +1,7 @@
 import type {
   AskResponse,
+  AuthResponse,
+  AuthUser,
   ChatConversation,
   ChatConversationDetail,
   Collection,
@@ -12,11 +14,37 @@ import type {
 
 const API_BASE = import.meta.env.VITE_ATLAS_API_BASE ?? "";
 
+let authToken: string | null = null;
+let onUnauthorized: (() => void) | null = null;
+
+/** Called by AuthContext whenever the stored token changes (login/logout). */
+export function setAuthToken(token: string | null) {
+  authToken = token;
+}
+
+/** Called by AuthContext so the API layer can force a logout on 401s. */
+export function setUnauthorizedHandler(handler: (() => void) | null) {
+  onUnauthorized = handler;
+}
+
+function authHeaders(): Record<string, string> {
+  return authToken ? { Authorization: `Bearer ${authToken}` } : {};
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const isFormData = init?.body instanceof FormData;
   const response = await fetch(`${API_BASE}${path}`, {
-    headers: init?.body instanceof FormData ? undefined : { "Content-Type": "application/json" },
     ...init,
+    headers: {
+      ...(isFormData ? {} : { "Content-Type": "application/json" }),
+      ...authHeaders(),
+      ...(init?.headers ?? {}),
+    },
   });
+
+  if (response.status === 401) {
+    onUnauthorized?.();
+  }
 
   if (!response.ok) {
     const fallback = `Atlas request failed with ${response.status}`;
@@ -30,6 +58,26 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   }
 
   return response.json() as Promise<T>;
+}
+
+// --- Auth ---
+
+export function registerAccount(name: string, email: string, password: string) {
+  return request<AuthResponse>("/auth/register", {
+    method: "POST",
+    body: JSON.stringify({ name, email, password }),
+  });
+}
+
+export function loginAccount(email: string, password: string) {
+  return request<AuthResponse>("/auth/login", {
+    method: "POST",
+    body: JSON.stringify({ email, password }),
+  });
+}
+
+export function getCurrentUser() {
+  return request<AuthUser>("/auth/me");
 }
 
 export function getDocuments() {
@@ -135,7 +183,10 @@ export async function streamChatMessage(
 ): Promise<void> {
   const response = await fetch(`${API_BASE}/ai/chat`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...authHeaders(),
+    },
     body: JSON.stringify({
       conversation_id: params.conversationId,
       question: params.question,
@@ -145,6 +196,10 @@ export async function streamChatMessage(
     }),
     signal,
   });
+
+  if (response.status === 401) {
+    onUnauthorized?.();
+  }
 
   if (!response.ok || !response.body) {
     throw new Error(`Atlas chat request failed with ${response.status}`);

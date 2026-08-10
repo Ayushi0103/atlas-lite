@@ -3,6 +3,7 @@ import json
 import time
 from collections.abc import Generator
 from datetime import datetime
+from typing import Literal
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
@@ -10,8 +11,9 @@ from pydantic import BaseModel, Field
 from sqlmodel import select
 
 from app.database import SessionDep
-from app.models import Conversation, Message
+from app.models import Conversation, Message, User
 from app.routes.conversations import generate_conversation_title
+from app.services.auth import CurrentUser
 from app.services.rag import (
     LLMUnavailableError,
     NoRelevantContextError,
@@ -26,14 +28,23 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/ai", tags=["ai"])
 
+SearchScope = Literal["all", "documents", "notes"]
+SearchSince = Literal["all", "today", "week", "month"]
+
 
 class ChatRequest(BaseModel):
     conversation_id: int | None = None
     question: str = Field(min_length=1)
+    scope: SearchScope = "all"
+    file_type: str | None = None
+    since: SearchSince = "all"
 
 
 class AskRequest(BaseModel):
     question: str = Field(min_length=1)
+    scope: SearchScope = "all"
+    file_type: str | None = None
+    since: SearchSince = "all"
 
 
 def _get_recent_messages(
@@ -105,9 +116,11 @@ def _get_or_create_conversation(
     request: ChatRequest,
     cleaned_question: str,
     session: SessionDep,
+    user: User,
 ) -> Conversation:
     if request.conversation_id is None:
         conversation = Conversation(
+            user_id=user.id,  # type: ignore[arg-type]
             title=generate_conversation_title(cleaned_question),
         )
         session.add(conversation)
@@ -116,7 +129,7 @@ def _get_or_create_conversation(
         return conversation
 
     conversation = session.get(Conversation, request.conversation_id)
-    if conversation is None:
+    if conversation is None or conversation.user_id != user.id:
         raise HTTPException(status_code=404, detail="Conversation not found")
 
     if not _conversation_has_messages(session, request.conversation_id):
@@ -140,13 +153,20 @@ def _handle_ai_error(exc: Exception) -> HTTPException:
 
 
 @router.post("/ask", response_model=RAGResponse)
-def ask_ai(request: AskRequest) -> RAGResponse:
+def ask_ai(request: AskRequest, session: SessionDep, current_user: CurrentUser) -> RAGResponse:
     cleaned_question = request.question.strip()
     if not cleaned_question:
         raise HTTPException(status_code=400, detail="Question cannot be empty")
 
     try:
-        return answer_question(cleaned_question)
+        return answer_question(
+            cleaned_question,
+            session,
+            current_user.id,  # type: ignore[arg-type]
+            scope=request.scope,
+            file_type=request.file_type,
+            since=request.since,
+        )
     except (NoRelevantContextError, LLMUnavailableError) as exc:
         raise _handle_ai_error(exc) from exc
     except Exception as exc:
@@ -154,20 +174,33 @@ def ask_ai(request: AskRequest) -> RAGResponse:
 
 
 @router.post("/chat")
-def chat_ai(request: ChatRequest, session: SessionDep) -> StreamingResponse:
+def chat_ai(
+    request: ChatRequest,
+    session: SessionDep,
+    current_user: CurrentUser,
+) -> StreamingResponse:
     cleaned_question = request.question.strip()
 
     try:
         if not cleaned_question:
             raise HTTPException(status_code=400, detail="Question cannot be empty")
 
-        conversation = _get_or_create_conversation(request, cleaned_question, session)
+        conversation = _get_or_create_conversation(
+            request, cleaned_question, session, current_user
+        )
 
         if conversation.id is None:
             raise RuntimeError("Conversation ID was not created")
 
         history = _get_recent_messages(session, conversation.id)
-        rag_context = prepare_rag_context(cleaned_question)
+        rag_context = prepare_rag_context(
+            cleaned_question,
+            session,
+            current_user.id,  # type: ignore[arg-type]
+            scope=request.scope,
+            file_type=request.file_type,
+            since=request.since,
+        )
         logger.info(
             "Conversation %s retrieved document count: %s",
             conversation.id,

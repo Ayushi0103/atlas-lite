@@ -7,6 +7,7 @@ from sqlmodel import select
 
 from app.database import SessionDep
 from app.models import Conversation, Message
+from app.services.auth import CurrentUser
 
 
 logger = logging.getLogger(__name__)
@@ -61,10 +62,11 @@ def generate_conversation_title(message: str) -> str:
 )
 def create_conversation(
     session: SessionDep,
+    current_user: CurrentUser,
     request: ConversationCreate | None = None,
 ) -> Conversation:
     title = request.title.strip() if request and request.title else "New conversation"
-    conversation = Conversation(title=title)
+    conversation = Conversation(user_id=current_user.id, title=title)  # type: ignore[arg-type]
 
     try:
         session.add(conversation)
@@ -82,15 +84,23 @@ def create_conversation(
 
 
 @router.get("", response_model=list[ConversationRead])
-def get_conversations(session: SessionDep) -> list[Conversation]:
-    statement = select(Conversation).order_by(Conversation.updated_at.desc())
+def get_conversations(session: SessionDep, current_user: CurrentUser) -> list[Conversation]:
+    statement = (
+        select(Conversation)
+        .where(Conversation.user_id == current_user.id)
+        .order_by(Conversation.updated_at.desc())
+    )
     return list(session.exec(statement).all())
 
 
 @router.get("/{conversation_id}", response_model=ConversationDetail)
-def get_conversation(conversation_id: int, session: SessionDep) -> ConversationDetail:
+def get_conversation(
+    conversation_id: int,
+    session: SessionDep,
+    current_user: CurrentUser,
+) -> ConversationDetail:
     conversation = session.get(Conversation, conversation_id)
-    if conversation is None:
+    if conversation is None or conversation.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Conversation not found")
 
     statement = (
@@ -110,9 +120,13 @@ def get_conversation(conversation_id: int, session: SessionDep) -> ConversationD
 
 
 @router.delete("/{conversation_id}")
-def delete_conversation(conversation_id: int, session: SessionDep):
+def delete_conversation(
+    conversation_id: int,
+    session: SessionDep,
+    current_user: CurrentUser,
+):
     conversation = session.get(Conversation, conversation_id)
-    if conversation is None:
+    if conversation is None or conversation.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Conversation not found")
 
     try:

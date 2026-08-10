@@ -79,6 +79,7 @@ def _upsert_source_embeddings(
     *,
     source_type: SourceType,
     source_id: int,
+    user_id: int,
     text: str,
     title: str | None = None,
     filename: str | None = None,
@@ -105,6 +106,7 @@ def _upsert_source_embeddings(
                 "source_key": _source_key(source_type, source_id),
                 "source_type": source_type,
                 "source_id": source_id,
+                "user_id": user_id,
                 "document_id": source_id if source_type == "document" else 0,
                 "note_id": source_id if source_type == "note" else 0,
                 "chunk_index": chunk_index,
@@ -123,19 +125,21 @@ def _upsert_source_embeddings(
         )
 
 
-def add_document_embedding(document_id: int, filename: str, text: str) -> None:
+def add_document_embedding(document_id: int, user_id: int, filename: str, text: str) -> None:
     _upsert_source_embeddings(
         source_type="document",
         source_id=document_id,
+        user_id=user_id,
         filename=filename,
         text=text,
     )
 
 
-def add_note_embedding(note_id: int, title: str, text: str) -> None:
+def add_note_embedding(note_id: int, user_id: int, title: str, text: str) -> None:
     _upsert_source_embeddings(
         source_type="note",
         source_id=note_id,
+        user_id=user_id,
         title=title,
         text=f"{title}\n{text}",
     )
@@ -144,6 +148,7 @@ def add_note_embedding(note_id: int, title: str, text: str) -> None:
 def update_embedding(
     source_type: SourceType,
     source_id: int,
+    user_id: int,
     text: str,
     title: str | None = None,
     filename: str | None = None,
@@ -151,6 +156,7 @@ def update_embedding(
     _upsert_source_embeddings(
         source_type=source_type,
         source_id=source_id,
+        user_id=user_id,
         text=text,
         title=title,
         filename=filename,
@@ -161,7 +167,7 @@ def delete_embedding(source_type: SourceType, source_id: int) -> None:
     _delete_existing_vectors(source_type, source_id)
 
 
-def semantic_search(query: str, top_k: int = 5) -> list[SemanticSearchResult]:
+def semantic_search(query: str, user_id: int, top_k: int = 5) -> list[SemanticSearchResult]:
     cleaned_query = query.strip()
     if not cleaned_query or top_k <= 0:
         return []
@@ -175,6 +181,7 @@ def semantic_search(query: str, top_k: int = 5) -> list[SemanticSearchResult]:
         matches = collection.query(
             query_embeddings=[query_embedding],
             n_results=top_k,
+            where={"user_id": user_id},
             include=["documents", "metadatas", "distances"],
         )
     except Exception:

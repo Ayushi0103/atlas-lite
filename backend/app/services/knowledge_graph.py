@@ -103,7 +103,7 @@ def generate_knowledge_graph_for_document(
     session: Session,
 ) -> KnowledgeGraphExtraction:
     extraction = extract_knowledge_graph(document)
-    store_knowledge_graph(extraction, session)
+    store_knowledge_graph(extraction, session, document.user_id)
 
     logger.info(
         "Knowledge graph generated",
@@ -157,12 +157,14 @@ def extract_knowledge_graph(document: Document) -> KnowledgeGraphExtraction:
 def store_knowledge_graph(
     extraction: KnowledgeGraphExtraction,
     session: Session,
+    user_id: int,
 ) -> None:
     nodes_by_key: dict[tuple[str, str], KnowledgeGraphNode] = {}
 
     for extracted_node in [*extraction.entities, *extraction.concepts]:
         node = _get_or_create_node(
             session,
+            user_id,
             extracted_node.name,
             extracted_node.type,
         )
@@ -175,11 +177,11 @@ def store_knowledge_graph(
 
         source = nodes_by_key.get(_node_key(relationship.source, source_type))
         if source is None:
-            source = _get_or_create_node(session, relationship.source, source_type)
+            source = _get_or_create_node(session, user_id, relationship.source, source_type)
 
         target = nodes_by_key.get(_node_key(relationship.target, target_type))
         if target is None:
-            target = _get_or_create_node(session, relationship.target, target_type)
+            target = _get_or_create_node(session, user_id, relationship.target, target_type)
 
         if source.id is None or target.id is None:
             continue
@@ -194,11 +196,12 @@ def store_knowledge_graph(
     session.commit()
 
 
-def get_related_concepts(concept: str, session: Session) -> dict:
+def get_related_concepts(concept: str, session: Session, user_id: int) -> dict:
     concept = concept.strip()
     source_node = session.exec(
         select(KnowledgeGraphNode).where(
-            KnowledgeGraphNode.name.ilike(f"%{concept}%")
+            KnowledgeGraphNode.user_id == user_id,
+            KnowledgeGraphNode.name.ilike(f"%{concept}%"),
         )
     ).first()
     if source_node is None or source_node.id is None:
@@ -229,6 +232,7 @@ def get_related_concepts(concept: str, session: Session) -> dict:
 
 def _get_or_create_node(
     session: Session,
+    user_id: int,
     name: str,
     node_type: str,
 ) -> KnowledgeGraphNode:
@@ -237,6 +241,7 @@ def _get_or_create_node(
 
     node = session.exec(
         select(KnowledgeGraphNode).where(
+            KnowledgeGraphNode.user_id == user_id,
             func.lower(KnowledgeGraphNode.name) == normalized_name.lower(),
             func.lower(KnowledgeGraphNode.type) == normalized_type.lower(),
         )
@@ -244,7 +249,7 @@ def _get_or_create_node(
     if node is not None:
         return node
 
-    node = KnowledgeGraphNode(name=normalized_name, type=normalized_type)
+    node = KnowledgeGraphNode(user_id=user_id, name=normalized_name, type=normalized_type)
     session.add(node)
     try:
         session.commit()
@@ -252,6 +257,7 @@ def _get_or_create_node(
         session.rollback()
         existing_node = session.exec(
             select(KnowledgeGraphNode).where(
+                KnowledgeGraphNode.user_id == user_id,
                 func.lower(KnowledgeGraphNode.name) == normalized_name.lower(),
                 func.lower(KnowledgeGraphNode.type) == normalized_type.lower(),
             )

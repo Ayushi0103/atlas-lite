@@ -3,6 +3,7 @@ from collections.abc import Generator
 from typing import Literal, Mapping
 
 from pydantic import BaseModel
+from sqlmodel import Session
 
 from app.services.embedding import SemanticSearchResult, semantic_search
 from app.services.groq_client import (
@@ -11,6 +12,7 @@ from app.services.groq_client import (
     generate_answer,
     generate_answer_stream,
 )
+from app.services.search_filters import Scope, Since, apply_filters
 
 
 logger = logging.getLogger(__name__)
@@ -97,11 +99,26 @@ def _extract_sources(results: list[SemanticSearchResult]) -> list[RAGSource]:
     return sources
 
 
-def prepare_rag_context(question: str) -> RAGContext:
+def prepare_rag_context(
+    question: str,
+    session: Session,
+    user_id: int,
+    *,
+    scope: Scope = "all",
+    file_type: str | None = None,
+    since: Since = "all",
+) -> RAGContext:
     cleaned_question = question.strip()
     logger.info("Incoming AI question: %s", cleaned_question)
 
-    results = semantic_search(cleaned_question, top_k=TOP_K)
+    raw_results = semantic_search(cleaned_question, user_id, top_k=TOP_K * 4)
+    results = apply_filters(
+        raw_results,
+        session,
+        scope=scope,
+        file_type=file_type,
+        since=since,
+    )[:TOP_K]
     logger.info("Retrieved semantic match count: %s", len(results))
 
     if not results:
@@ -121,9 +138,22 @@ def prepare_rag_context(question: str) -> RAGContext:
 
 def answer_question(
     question: str,
+    session: Session,
+    user_id: int,
     conversation_history: list[Mapping[str, str]] | None = None,
+    *,
+    scope: Scope = "all",
+    file_type: str | None = None,
+    since: Since = "all",
 ) -> RAGResponse:
-    rag_context = prepare_rag_context(question)
+    rag_context = prepare_rag_context(
+        question,
+        session,
+        user_id,
+        scope=scope,
+        file_type=file_type,
+        since=since,
+    )
 
     try:
         answer = generate_answer(
@@ -135,14 +165,6 @@ def answer_question(
         raise LLMUnavailableError("LLM service unavailable") from exc
 
     return RAGResponse(answer=answer, sources=rag_context.sources)
-
-
-def answer_question_stream(
-    question: str,
-    conversation_history: list[Mapping[str, str]] | None = None,
-) -> Generator[str, None, list[RAGSource]]:
-    rag_context = prepare_rag_context(question)
-    return stream_answer_from_context(rag_context, conversation_history)
 
 
 def stream_answer_from_context(

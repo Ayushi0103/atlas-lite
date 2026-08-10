@@ -5,6 +5,22 @@ from sqlalchemy import Column, String, Text, UniqueConstraint
 from sqlmodel import SQLModel, Field, Relationship
 
 
+class User(SQLModel, table=True):
+    __tablename__ = "user"
+
+    id: int | None = Field(default=None, primary_key=True)
+
+    email: str = Field(
+        sa_column=Column(String, unique=True, index=True, nullable=False)
+    )
+
+    hashed_password: str
+
+    name: str
+
+    created_at: datetime = Field(default_factory=datetime.now)
+
+
 class CollectionNote(SQLModel, table=True):
     __tablename__ = "collection_note"
 
@@ -26,6 +42,9 @@ class CollectionNote(SQLModel, table=True):
 class Note(SQLModel, table=True):
     # Primary key for each note.
     id: int | None = Field(default=None, primary_key=True)
+
+    # Owning user.
+    user_id: int = Field(foreign_key="user.id", index=True, ondelete="CASCADE")
 
     # Note title.
     title: str
@@ -49,6 +68,9 @@ class Collection(SQLModel, table=True):
     # Primary key for each collection.
     id: int | None = Field(default=None, primary_key=True)
 
+    # Owning user.
+    user_id: int = Field(foreign_key="user.id", index=True, ondelete="CASCADE")
+
     # Collection name.
     name: str
 
@@ -67,6 +89,9 @@ class Collection(SQLModel, table=True):
 class Document(SQLModel, table=True):
     # Primary key for each uploaded document.
     id: int | None = Field(default=None, primary_key=True)
+
+    # Owning user.
+    user_id: int = Field(foreign_key="user.id", index=True, ondelete="CASCADE")
 
     # Original filename provided at upload time.
     filename: str
@@ -111,10 +136,15 @@ class Document(SQLModel, table=True):
 class KnowledgeGraphNode(SQLModel, table=True):
     __tablename__ = "knowledge_graph_node"
     __table_args__ = (
-        UniqueConstraint("name", "type", name="uq_knowledge_graph_node_name_type"),
+        UniqueConstraint(
+            "user_id", "name", "type", name="uq_knowledge_graph_node_user_name_type"
+        ),
     )
 
     id: int | None = Field(default=None, primary_key=True)
+
+    # Owning user.
+    user_id: int = Field(foreign_key="user.id", index=True, ondelete="CASCADE")
 
     name: str = Field(sa_column=Column(String(collation="NOCASE"), nullable=False))
 
@@ -156,6 +186,9 @@ class KnowledgeGraphEdge(SQLModel, table=True):
 class Conversation(SQLModel, table=True):
     # Primary key for each AI conversation.
     id: int | None = Field(default=None, primary_key=True)
+
+    # Owning user.
+    user_id: int = Field(foreign_key="user.id", index=True, ondelete="CASCADE")
 
     # Human-readable conversation title.
     title: str

@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { AuthPage } from "./components/AuthPage";
 import { BackgroundLayer } from "./components/BackgroundLayer";
 import { ChatPage } from "./components/ChatPage";
 import { CollectionsPage } from "./components/CollectionsPage";
@@ -7,10 +8,11 @@ import type { SearchBarHandle } from "./components/SearchBar";
 import { SearchDashboard } from "./components/SearchDashboard";
 import { Sidebar } from "./components/Sidebar";
 import { TopToolbar } from "./components/TopToolbar";
+import { useAuth } from "./context/AuthContext";
 import { useAtlasSearch } from "./hooks/useAtlasSearch";
 import type { AppView } from "./types/atlas";
 
-function App() {
+function AtlasApp() {
   const {
     documents,
     error,
@@ -75,6 +77,24 @@ function App() {
       </div>
     </div>
   );
+}
+
+function App() {
+  const { user, isInitializing } = useAuth();
+
+  if (isInitializing) {
+    return (
+      <div className="app-shell auth-shell">
+        <BackgroundLayer />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <AuthPage />;
+  }
+
+  return <AtlasApp />;
 }
 
 export default App;

@@ -5,6 +5,7 @@ from pydantic import BaseModel
 
 from app.database import SessionDep
 from app.services.atlas_agent import run_agent
+from app.services.auth import CurrentUser
 from app.services.groq_client import GroqConfigurationError, GroqServiceError
 
 
@@ -19,11 +20,12 @@ class AgentChatRequest(BaseModel):
 
 
 @router.post("/chat")
-def chat_with_agent(request: AgentChatRequest, session: SessionDep):
+def chat_with_agent(request: AgentChatRequest, session: SessionDep, current_user: CurrentUser):
     try:
         return run_agent(
             question=request.question,
             session=session,
+            user_id=current_user.id,  # type: ignore[arg-type]
             conversation_id=request.conversation_id,
         )
     except GroqConfigurationError as exc:
