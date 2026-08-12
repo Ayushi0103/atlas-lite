@@ -10,7 +10,10 @@ export default defineConfig({
       "/search": "http://127.0.0.1:8000",
       "/documents": "http://127.0.0.1:8000",
       "/notes": "http://127.0.0.1:8000",
-      "/collections": "http://127.0.0.1:8000"
+      "/collections": "http://127.0.0.1:8000",
+      "/auth": "http://127.0.0.1:8000",
+      "/connectors": "http://127.0.0.1:8000",
+      
     }
   }
 });

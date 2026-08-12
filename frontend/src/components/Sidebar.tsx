@@ -1,7 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import type { ReactElement } from "react";
 import { BellIcon, ChatIcon, GridIcon, HomeIcon, MoonIcon, SearchIcon, SettingsIcon, SunIcon } from "./Icons";
+import { NotificationsPanel } from "./NotificationsPanel";
+import { SettingsPanel } from "./SettingsPanel";
 import { useAuth } from "../context/AuthContext";
+import { useNotifications } from "../context/NotificationsContext";
+import { useTheme } from "../context/ThemeContext";
 import type { AppView } from "../types/atlas";
 
 type SidebarProps = {
@@ -15,6 +19,8 @@ type NavItem = {
   view: AppView;
 };
 
+type PopoverKey = "profile" | "notifications" | "settings";
+
 function getInitials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return "?";
@@ -24,18 +30,31 @@ function getInitials(name: string): string {
 
 export function Sidebar({ currentView, onNavigate }: SidebarProps) {
   const { user, logout } = useAuth();
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
+  const { theme, toggleTheme } = useTheme();
+  const { unreadCount } = useNotifications();
+  const [openPopover, setOpenPopover] = useState<PopoverKey | null>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     function handleClickAway(event: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setIsMenuOpen(false);
+      if (rootRef.current && !rootRef.current.contains(event.target as Node)) {
+        setOpenPopover(null);
       }
     }
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") setOpenPopover(null);
+    }
     document.addEventListener("mousedown", handleClickAway);
-    return () => document.removeEventListener("mousedown", handleClickAway);
+    document.addEventListener("keydown", handleEscape);
+    return () => {
+      document.removeEventListener("mousedown", handleClickAway);
+      document.removeEventListener("keydown", handleEscape);
+    };
   }, []);
+
+  function togglePopover(key: PopoverKey) {
+    setOpenPopover((current) => (current === key ? null : key));
+  }
 
   const items: NavItem[] = [
     { label: "Home", icon: <HomeIcon />, view: "home" },
@@ -45,7 +64,7 @@ export function Sidebar({ currentView, onNavigate }: SidebarProps) {
   ];
 
   return (
-    <nav className="side-rail" aria-label="Primary">
+    <nav className="side-rail" aria-label="Primary" ref={rootRef}>
       <div className="side-group">
         {items.map((item) => (
           <button
@@ -62,24 +81,24 @@ export function Sidebar({ currentView, onNavigate }: SidebarProps) {
         ))}
       </div>
 
-      <div className="profile-menu" ref={menuRef}>
+      <div className="profile-menu">
         <button
-          aria-expanded={isMenuOpen}
+          aria-expanded={openPopover === "profile"}
           aria-label="Profile"
           className="avatar-button"
-          onClick={() => setIsMenuOpen((open) => !open)}
+          onClick={() => togglePopover("profile")}
           type="button"
         >
           <span>{user ? getInitials(user.name) : "?"}</span>
         </button>
-        {isMenuOpen && (
+        {openPopover === "profile" && (
           <div className="profile-popover" role="menu">
             <p className="profile-name">{user?.name}</p>
             <p className="profile-email">{user?.email}</p>
             <button
               className="profile-logout"
               onClick={() => {
-                setIsMenuOpen(false);
+                setOpenPopover(null);
                 logout();
               }}
               role="menuitem"
@@ -92,10 +111,48 @@ export function Sidebar({ currentView, onNavigate }: SidebarProps) {
       </div>
 
       <div className="side-group">
-        <button className="rail-button" aria-label="Notifications" title="Notifications" type="button"><BellIcon /></button>
-        <button className="rail-button" aria-label="Settings" title="Settings" type="button"><SettingsIcon /></button>
-        <button className="rail-button" aria-label="Theme" title="Theme" type="button"><MoonIcon /></button>
-        <button className="rail-button" aria-label="Light mode" title="Light mode" type="button"><SunIcon /></button>
+        <div className="rail-popover-anchor">
+          <button
+            aria-expanded={openPopover === "notifications"}
+            aria-label="Notifications"
+            className={`rail-button ${openPopover === "notifications" ? "is-active" : ""}`}
+            onClick={() => togglePopover("notifications")}
+            title="Notifications"
+            type="button"
+          >
+            <BellIcon />
+            {unreadCount > 0 && (
+              <span className="rail-badge" aria-hidden="true">
+                {unreadCount > 9 ? "9+" : unreadCount}
+              </span>
+            )}
+          </button>
+          {openPopover === "notifications" && <NotificationsPanel />}
+        </div>
+
+        <div className="rail-popover-anchor">
+          <button
+            aria-expanded={openPopover === "settings"}
+            aria-label="Settings"
+            className={`rail-button ${openPopover === "settings" ? "is-active" : ""}`}
+            onClick={() => togglePopover("settings")}
+            title="Settings"
+            type="button"
+          >
+            <SettingsIcon />
+          </button>
+          {openPopover === "settings" && <SettingsPanel />}
+        </div>
+
+        <button
+          aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+          className="rail-button"
+          onClick={toggleTheme}
+          title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+          type="button"
+        >
+          {theme === "dark" ? <SunIcon /> : <MoonIcon />}
+        </button>
       </div>
     </nav>
   );

@@ -8,11 +8,13 @@ import {
   type ReactNode,
 } from "react";
 import {
+  changePassword as changePasswordRequest,
   getCurrentUser,
   loginAccount,
   registerAccount,
   setAuthToken,
   setUnauthorizedHandler,
+  updateProfile as updateProfileRequest,
 } from "../services/atlasApi";
 import type { AuthUser } from "../types/atlas";
 
@@ -27,6 +29,8 @@ type AuthContextValue = {
   register: (name: string, email: string, password: string) => Promise<void>;
   logout: () => void;
   clearError: () => void;
+  updateProfile: (name: string) => Promise<void>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -99,9 +103,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const clearError = useCallback(() => setError(null), []);
 
+  const updateProfile = useCallback(async (name: string) => {
+    const updatedUser = await updateProfileRequest(name);
+    setUser(updatedUser);
+  }, []);
+
+  const changePassword = useCallback(async (currentPassword: string, newPassword: string) => {
+    await changePasswordRequest(currentPassword, newPassword);
+  }, []);
+
   const value = useMemo(
-    () => ({ user, isInitializing, isSubmitting, error, login, register, logout, clearError }),
-    [user, isInitializing, isSubmitting, error, login, register, logout, clearError],
+    () => ({
+      user,
+      isInitializing,
+      isSubmitting,
+      error,
+      login,
+      register,
+      logout,
+      clearError,
+      updateProfile,
+      changePassword,
+    }),
+    [user, isInitializing, isSubmitting, error, login, register, logout, clearError, updateProfile, changePassword],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

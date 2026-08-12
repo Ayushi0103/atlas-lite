@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { askAtlas, getDocuments, semanticSearch, uploadDocument } from "../services/atlasApi";
 import type { DocumentFile, SearchFilters, SearchState } from "../types/atlas";
+import { useNotifications } from "../context/NotificationsContext";
 
 const emptySearch: SearchState = {
   query: "",
@@ -26,6 +27,7 @@ function parseStringList(value?: string | null): string[] {
 }
 
 export function useAtlasSearch() {
+  const { notify } = useNotifications();
   const [documents, setDocuments] = useState<DocumentFile[]>([]);
   const [search, setSearch] = useState<SearchState>(emptySearch);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
@@ -80,17 +82,20 @@ export function useAtlasSearch() {
   }, [filters]);
 
   const handleUpload = useCallback(async (file: File) => {
-    setIsUploading(true);
-    setError(null);
-    try {
-      await uploadDocument(file);
-      await refreshDocuments();
-    } catch (error) {
-      setError(error instanceof Error ? error.message : "Could not upload this file.");
-    } finally {
-      setIsUploading(false);
-    }
-  }, [refreshDocuments]);
+  setIsUploading(true);
+  setError(null);
+  try {
+    await uploadDocument(file);
+    await refreshDocuments();
+    notify("File uploaded", `${file.name} was added to your library.`, "success");
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Could not upload this file.";
+    setError(message);
+    notify("Upload failed", message, "error");
+  } finally {
+    setIsUploading(false);
+  }
+}, [refreshDocuments, notify]);
 
   return {
     documents,

@@ -80,6 +80,39 @@ export function getCurrentUser() {
   return request<AuthUser>("/auth/me");
 }
 
+export function updateProfile(name: string) {
+  return request<AuthUser>("/auth/me", {
+    method: "PATCH",
+    body: JSON.stringify({ name }),
+  });
+}
+
+export async function changePassword(currentPassword: string, newPassword: string) {
+  const response = await fetch(`${API_BASE}/auth/change-password`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...authHeaders(),
+    },
+    body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
+  });
+
+  if (response.status === 401) {
+    onUnauthorized?.();
+  }
+
+  if (!response.ok) {
+    const fallback = `Atlas request failed with ${response.status}`;
+    try {
+      const payload = await response.json();
+      throw new Error(payload.detail ?? fallback);
+    } catch (error) {
+      if (error instanceof Error && error.message !== fallback) throw error;
+      throw new Error(fallback);
+    }
+  }
+}
+
 export function getDocuments() {
   return request<DocumentFile[]>("/documents");
 }
