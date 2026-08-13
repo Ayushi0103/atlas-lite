@@ -13,7 +13,7 @@ export default defineConfig({
       "/collections": "http://127.0.0.1:8000",
       "/auth": "http://127.0.0.1:8000",
       "/connectors": "http://127.0.0.1:8000",
-      
+      "/conversations": "http://127.0.0.1:8000"
     }
   }
 });

@@ -1220,11 +1220,6 @@ a:focus-visible {
     display: flex;
   }
 
-  .side-group:last-child,
-  .avatar-button {
-    display: none;
-  }
-
   .hero-section {
     min-height: calc(100svh - 28px);
     padding: 230px 18px 120px;
@@ -1654,4 +1649,68 @@ a:focus-visible {
 [data-theme="dark"] .greeting,
 [data-theme="dark"] .query-pill {
   color: #e6e5ff;
+}
+
+/* --- Mobile: rail + popovers --- */
+
+@media (max-width: 980px) {
+  .side-rail {
+    gap: 4px;
+    padding: 6px 10px;
+    overflow-x: auto;
+    justify-content: space-between;
+  }
+
+  .side-group {
+    gap: 4px;
+  }
+
+  .rail-button,
+  .avatar-button,
+  .sheet-home {
+    width: 34px;
+    height: 34px;
+    flex-shrink: 0;
+  }
+
+  .rail-button svg,
+  .avatar-button span {
+    width: 18px;
+    height: 18px;
+  }
+
+  .profile-menu {
+    order: -1;
+  }
+
+  .popover,
+  .profile-popover {
+    position: fixed;
+    top: auto;
+    left: 12px;
+    right: 12px;
+    bottom: 78px;
+    width: auto;
+    max-height: 65vh;
+    z-index: 60;
+  }
+
+  .notifications-popover,
+  .settings-popover {
+    width: auto;
+  }
+}
+
+@media (max-width: 560px) {
+  .rail-button,
+  .avatar-button,
+  .sheet-home {
+    width: 32px;
+    height: 32px;
+  }
+
+  .rail-badge {
+    top: -3px;
+    right: -3px;
+  }
 }
