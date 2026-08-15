@@ -1,4 +1,5 @@
 import logging
+from typing import Literal
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
@@ -13,10 +14,16 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/agent", tags=["agent"])
 
+SearchScope = Literal["all", "documents", "notes"]
+SearchSince = Literal["all", "today", "week", "month"]
+
 
 class AgentChatRequest(BaseModel):
     question: str
     conversation_id: int | None = None
+    scope: SearchScope = "all"
+    file_type: str | None = None
+    since: SearchSince = "all"
 
 
 @router.post("/chat")
@@ -27,6 +34,9 @@ def chat_with_agent(request: AgentChatRequest, session: SessionDep, current_user
             session=session,
             user_id=current_user.id,  # type: ignore[arg-type]
             conversation_id=request.conversation_id,
+            scope=request.scope,
+            file_type=request.file_type,
+            since=request.since,
         )
     except GroqConfigurationError as exc:
         raise HTTPException(

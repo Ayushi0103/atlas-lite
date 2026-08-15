@@ -8,6 +8,8 @@ const emptySearch: SearchState = {
   answer: "",
   sources: [],
   semanticResults: [],
+  relatedConcepts: [],
+  intent: null,
 };
 
 const defaultFilters: SearchFilters = {
@@ -73,6 +75,8 @@ export function useAtlasSearch() {
         answer: answer.answer,
         sources: answer.sources ?? [],
         semanticResults,
+        relatedConcepts: answer.related_concepts ?? [],
+        intent: answer.intent ?? null,
       });
     } catch (error) {
       setError(error instanceof Error ? error.message : "Atlas could not answer that yet.");

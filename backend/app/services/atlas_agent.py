@@ -1,7 +1,9 @@
 import logging
 import re
 from dataclasses import dataclass, field
-from typing import Protocol, TypedDict
+from typing import Protocol
+
+from typing_extensions import TypedDict
 
 from sqlalchemy import or_
 from sqlmodel import Session, select
@@ -14,6 +16,7 @@ from app.services.groq_client import (
     generate_answer,
 )
 from app.services.knowledge_graph import get_related_concepts
+from app.services.search_filters import Scope, Since, apply_filters
 
 
 logger = logging.getLogger("AtlasAgent")
@@ -24,11 +27,25 @@ NO_KNOWLEDGE_BASE_ANSWER = (
 )
 
 
+class SourceRef(TypedDict):
+    type: str
+    id: int
+    title: str
+
+
+class RelatedConcept(TypedDict):
+    relationship: str
+    target: str
+    type: str
+
+
 class AgentResponse(TypedDict):
     intent: str
     tools_used: list[str]
     context: str
     answer: str
+    sources: list[SourceRef]
+    related_concepts: list[RelatedConcept]
 
 
 @dataclass(frozen=True)
@@ -45,6 +62,9 @@ class AgentState:
     session: Session
     user_id: int
     conversation_id: int | None = None
+    scope: Scope = "all"
+    file_type: str | None = None
+    since: Since = "all"
     intent: str = "general_question"
     tool_results: list[ToolResult] = field(default_factory=list)
     context_sections: list[str] = field(default_factory=list)
@@ -108,7 +128,14 @@ class SemanticSearchTool:
     name = "SemanticSearch"
 
     def run(self, state: AgentState) -> ToolResult:
-        results = semantic_search(state.question, state.user_id, top_k=TOP_K)
+        raw_results = semantic_search(state.question, state.user_id, top_k=TOP_K * 4)
+        results = apply_filters(
+            raw_results,
+            state.session,
+            scope=state.scope,
+            file_type=state.file_type,
+            since=state.since,
+        )[:TOP_K]
         logger.info("Search returned %s chunks", len(results))
 
         return ToolResult(
@@ -295,6 +322,10 @@ def run_agent(
     session: Session,
     user_id: int,
     conversation_id: int | None = None,
+    *,
+    scope: Scope = "all",
+    file_type: str | None = None,
+    since: Since = "all",
 ) -> AgentResponse:
     cleaned_question = question.strip()
     state = AgentState(
@@ -302,6 +333,9 @@ def run_agent(
         session=session,
         user_id=user_id,
         conversation_id=conversation_id,
+        scope=scope,
+        file_type=file_type,
+        since=since,
     )
     state.intent = DEFAULT_INTENT_DETECTOR.detect(cleaned_question)
     selected_tools = TOOL_PLANS.get(state.intent, TOOL_PLANS["general_question"])
@@ -332,7 +366,60 @@ def run_agent(
         "tools_used": state.tools_used,
         "context": state.build_context(),
         "answer": state.answer,
+        "sources": _extract_sources(state),
+        "related_concepts": _extract_related_concepts(state),
     }
+
+
+def _extract_sources(state: AgentState) -> list[SourceRef]:
+    sources: list[SourceRef] = []
+    seen: set[tuple[str, int]] = set()
+
+    def add(source_type: str, source_id: int | None, title: str) -> None:
+        if source_id is None:
+            return
+        key = (source_type, source_id)
+        if key in seen:
+            return
+        seen.add(key)
+        sources.append({"type": source_type, "id": source_id, "title": title})
+
+    for result in state.tool_results:
+        if result.name == "SemanticSearch" and result.data:
+            for item in result.data:  # type: ignore[union-attr]
+                title = item.get("filename") or item.get("title") or f"Source {item['id']}"
+                add(item["type"], item.get("id"), title)
+
+        elif result.name == "KeywordSearch" and result.data:
+            for item in result.data:  # type: ignore[union-attr]
+                add(item["type"], item.get("id"), str(item.get("title") or ""))
+
+        elif result.name == "DocumentMetadata" and result.data:
+            for document in result.data:  # type: ignore[union-attr]
+                add("document", document.id, document.filename)
+
+        elif result.name == "Collections" and result.data:
+            for collection in result.data:  # type: ignore[union-attr]
+                add("collection", collection.id, collection.name)
+
+    return sources
+
+
+def _extract_related_concepts(state: AgentState) -> list[RelatedConcept]:
+    for result in state.tool_results:
+        if result.name == "KnowledgeGraph" and result.data:
+            graph = result.data  # type: ignore[assignment]
+            related = graph.get("related", [])  # type: ignore[union-attr]
+            return [
+                {
+                    "relationship": item.get("relationship", ""),
+                    "target": item.get("target", ""),
+                    "type": item.get("type", ""),
+                }
+                for item in related
+            ]
+
+    return []
 
 
 def _keyword_search(query: str, session: Session, user_id: int) -> list[dict[str, object]]:

@@ -47,6 +47,15 @@ export type RagSource = {
 export type AskResponse = {
   answer: string;
   sources?: RagSource[];
+  intent?: string;
+  tools_used?: string[];
+  related_concepts?: RelatedConcept[];
+};
+
+export type RelatedConcept = {
+  relationship: string;
+  target: string;
+  type: string;
 };
 
 export type SearchState = {
@@ -54,6 +63,8 @@ export type SearchState = {
   answer: string;
   sources: RagSource[];
   semanticResults: SemanticResult[];
+  relatedConcepts: RelatedConcept[];
+  intent: string | null;
 };
 
 export type AppView = "home" | "search" | "collections" | "chat";

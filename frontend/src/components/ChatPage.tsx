@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { GlassCard, Loader } from "./Glass";
 import { ArrowUpRightIcon, HomeIcon, SparkleIcon, SunIcon } from "./Icons";
+import { MarkdownContent } from "./MarkdownContent";
 import {
   deleteConversation,
   getConversation,
@@ -176,12 +177,16 @@ export function ChatPage({ isOpen, onClose }: ChatPageProps) {
                 <div className="chat-messages">
                   {messages.map((message) => (
                     <div className={`chat-bubble chat-bubble-${message.role}`} key={message.id}>
-                      <p>{message.content}</p>
+                      {message.role === "assistant" ? (
+                        <MarkdownContent className="answer-markdown chat-markdown" content={message.content} />
+                      ) : (
+                        <p>{message.content}</p>
+                      )}
                     </div>
                   ))}
                   {streamingText && (
                     <div className="chat-bubble chat-bubble-assistant">
-                      <p>{streamingText}</p>
+                      <MarkdownContent className="answer-markdown chat-markdown" content={streamingText} />
                     </div>
                   )}
                   {messages.length === 0 && !streamingText && (

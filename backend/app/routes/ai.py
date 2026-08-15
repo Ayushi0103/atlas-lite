@@ -13,12 +13,11 @@ from sqlmodel import select
 from app.database import SessionDep
 from app.models import Conversation, Message, User
 from app.routes.conversations import generate_conversation_title
+from app.services.atlas_agent import AgentResponse, run_agent
 from app.services.auth import CurrentUser
 from app.services.rag import (
     LLMUnavailableError,
     NoRelevantContextError,
-    RAGResponse,
-    answer_question,
     prepare_rag_context,
     stream_answer_from_context,
 )
@@ -152,14 +151,14 @@ def _handle_ai_error(exc: Exception) -> HTTPException:
     return HTTPException(status_code=500, detail="Could not answer question.")
 
 
-@router.post("/ask", response_model=RAGResponse)
-def ask_ai(request: AskRequest, session: SessionDep, current_user: CurrentUser) -> RAGResponse:
+@router.post("/ask")
+def ask_ai(request: AskRequest, session: SessionDep, current_user: CurrentUser) -> AgentResponse:
     cleaned_question = request.question.strip()
     if not cleaned_question:
         raise HTTPException(status_code=400, detail="Question cannot be empty")
 
     try:
-        return answer_question(
+        return run_agent(
             cleaned_question,
             session,
             current_user.id,  # type: ignore[arg-type]
