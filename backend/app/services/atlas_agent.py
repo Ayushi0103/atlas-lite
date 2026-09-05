@@ -23,7 +23,7 @@ logger = logging.getLogger("AtlasAgent")
 
 TOP_K = 5
 NO_KNOWLEDGE_BASE_ANSWER = (
-    "I couldn't find this information in your Atlas knowledge base."
+    "I couldn't find this information in your KORA knowledge base."
 )
 
 

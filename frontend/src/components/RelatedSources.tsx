@@ -42,7 +42,7 @@ export function RelatedSources({ semanticResults, sources }: RelatedSourcesProps
             )}
           </article>
         ))}
-        {combined.length === 0 && <p className="empty-copy">Sources will appear when Atlas finds relevant context.</p>}
+        {combined.length === 0 && <p className="empty-copy">Sources will appear when KORA finds relevant context.</p>}
       </div>
       <button className="panel-link" type="button">View all sources <ArrowRightIcon aria-hidden="true" /></button>
     </section>

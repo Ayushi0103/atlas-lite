@@ -209,7 +209,7 @@ def extract_text_from_document(file_path: Path, file_type: str) -> str:
 
 @app.get("/")
 def read_root():
-    return {"message": "Welcome to Atlas Lite"}
+    return {"message": "Welcome to KORA"}
 
 
 @app.post("/notes")

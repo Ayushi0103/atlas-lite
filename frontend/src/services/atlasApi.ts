@@ -47,7 +47,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   }
 
   if (!response.ok) {
-    const fallback = `Atlas request failed with ${response.status}`;
+    const fallback = `KORA request failed with ${response.status}`;
     try {
       const payload = await response.json();
       throw new Error(payload.detail ?? fallback);
@@ -102,7 +102,7 @@ export async function changePassword(currentPassword: string, newPassword: strin
   }
 
   if (!response.ok) {
-    const fallback = `Atlas request failed with ${response.status}`;
+    const fallback = `KORA request failed with ${response.status}`;
     try {
       const payload = await response.json();
       throw new Error(payload.detail ?? fallback);
@@ -235,7 +235,7 @@ export async function streamChatMessage(
   }
 
   if (!response.ok || !response.body) {
-    throw new Error(`Atlas chat request failed with ${response.status}`);
+    throw new Error(`KORA chat request failed with ${response.status}`);
   }
 
   const reader = response.body.getReader();

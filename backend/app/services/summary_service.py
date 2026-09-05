@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 MAX_SUMMARY_INPUT_CHARS = 24000
 
-SUMMARY_SYSTEM_PROMPT = """You are Atlas Lite's AI knowledge summarization engine.
+SUMMARY_SYSTEM_PROMPT = """You are KORA's AI knowledge summarization engine.
 
 Generate accurate metadata only from the supplied source text.
 Return only valid JSON with these exact keys:

@@ -38,7 +38,7 @@ export function AuthPage() {
         <GlassCard className="auth-card">
           <div className="auth-brand">
             <SparkleIcon aria-hidden="true" />
-            <span>Atlas lite</span>
+            <span>KORA</span>
           </div>
           <h1>{mode === "login" ? "Welcome back" : "Create your account"}</h1>
           <p className="auth-subtitle">

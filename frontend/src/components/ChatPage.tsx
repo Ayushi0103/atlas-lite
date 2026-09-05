@@ -122,7 +122,7 @@ export function ChatPage({ isOpen, onClose }: ChatPageProps) {
         },
       );
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not reach Atlas chat.");
+      setError(err instanceof Error ? err.message : "Could not reach KORA chat.");
       setStreamingText("");
     } finally {
       setIsSending(false);
@@ -166,7 +166,7 @@ export function ChatPage({ isOpen, onClose }: ChatPageProps) {
                   </div>
                 ))}
                 {!isLoadingList && conversations.length === 0 && (
-                  <p className="empty-copy">Start a new chat to talk with Atlas.</p>
+                  <p className="empty-copy">Start a new chat to talk with KORA.</p>
                 )}
               </div>
             </GlassCard>
@@ -190,7 +190,7 @@ export function ChatPage({ isOpen, onClose }: ChatPageProps) {
                     </div>
                   )}
                   {messages.length === 0 && !streamingText && (
-                    <p className="empty-copy">Ask Atlas anything about your files.</p>
+                    <p className="empty-copy">Ask KORA anything about your files.</p>
                   )}
                 </div>
               )}
@@ -198,10 +198,10 @@ export function ChatPage({ isOpen, onClose }: ChatPageProps) {
               <form className="chat-input-row" onSubmit={handleSend}>
                 <SparkleIcon aria-hidden="true" />
                 <input
-                  aria-label="Message Atlas"
+                  aria-label="Message KORA"
                   disabled={isSending}
                   onChange={(event) => setDraft(event.target.value)}
-                  placeholder="Message Atlas..."
+                  placeholder="Message KORA..."
                   value={draft}
                 />
                 <button aria-label="Send message" disabled={isSending || !draft.trim()} type="submit">

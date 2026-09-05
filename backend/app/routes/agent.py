@@ -50,4 +50,4 @@ def chat_with_agent(request: AgentChatRequest, session: SessionDep, current_user
         ) from exc
     except Exception as exc:
         logger.exception("Atlas Agent failed")
-        raise HTTPException(status_code=500, detail="Atlas Agent failed") from exc
+        raise HTTPException(status_code=500, detail="KORA Agent failed") from exc

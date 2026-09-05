@@ -34,7 +34,7 @@ export function SearchDashboard({ documents, error, isLoading, isOpen, onClose, 
           <button className="sheet-home" aria-label="Back home" onClick={onClose} type="button">
             <HomeIcon aria-hidden="true" />
           </button>
-          <div className="query-pill" title={search.query}>{search.query || "Ask Atlas Lite"}</div>
+          <div className="query-pill" title={search.query}>{search.query || "Ask KORA"}</div>
           <div className="greeting">Good morning <SunIcon aria-hidden="true" /></div>
         </header>
         <div className="sheet-content">

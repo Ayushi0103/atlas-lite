@@ -1,12 +1,12 @@
-# Atlas Lite
+# KORA
 
-# Atlas Lite
+# KORA
 
-Atlas Lite is a personal knowledge management backend built with FastAPI.
+KORA — Knowledge Organizer & Retrieval Assistant — is a personal knowledge management backend built with FastAPI.
 
 It helps store, organize, search, and manage notes through a REST API. The project is being developed step by step to learn backend development while building the foundation for a future AI-powered knowledge management system.
 
-The long-term goal is to make Atlas Lite capable of understanding and searching different types of information such as notes, PDFs, images, audio, and videos using natural language.
+The long-term goal is to make KORA capable of understanding and searching different types of information such as notes, PDFs, images, audio, and videos using natural language.
 
 ---
 
@@ -38,7 +38,7 @@ The long-term goal is to make Atlas Lite capable of understanding and searching 
 
 ## Project Status
 
-Atlas Lite is under active development.
+KORA is under active development.
 
 Current focus:
 
@@ -61,7 +61,7 @@ Future roadmap includes:
 
 ## Vision
 
-Atlas Lite is being developed as a personal knowledge engine that will eventually allow users to search and interact with their information using natural language.
+KORA is being developed as a personal knowledge engine that will eventually allow users to search and interact with their information using natural language.
 
 The long-term objective is to create an intelligent layer that can organize, connect, and retrieve knowledge from multiple data sources while keeping user data private and under their control.
 
@@ -75,7 +75,7 @@ This repository is built incrementally using feature branches and sprint-based d
 
 ## Supported Upload Types
 
-Atlas Lite can ingest uploaded files as searchable documents.
+KORA can ingest uploaded files as searchable documents.
 
 - TXT
 - PDF
@@ -92,7 +92,7 @@ embedded, indexed for semantic search, and made available to RAG chat.
 
 ## YouTube Connector
 
-Atlas Lite can import a YouTube transcript as a normal searchable document.
+KORA can import a YouTube transcript as a normal searchable document.
 
 Install dependencies:
 
@@ -151,7 +151,7 @@ Notes:
 
 ## OCR Image Ingestion
 
-Atlas Lite can upload images and convert readable text into normal searchable
+KORA can upload images and convert readable text into normal searchable
 documents.
 
 Supported image formats:
@@ -188,7 +188,7 @@ Dependencies:
 - The Tesseract executable must be installed on the host system and available
   on `PATH`.
 
-If OCR cannot extract readable text, Atlas Lite returns `400 Bad Request` with:
+If OCR cannot extract readable text, KORA returns `400 Bad Request` with:
 
 ```text
 Could not extract readable text from image.
@@ -198,7 +198,7 @@ Could not extract readable text from image.
 
 ## Audio Transcription Ingestion
 
-Atlas Lite can upload audio files and convert speech into normal searchable
+KORA can upload audio files and convert speech into normal searchable
 documents using Faster Whisper.
 
 Supported audio formats:
@@ -238,5 +238,5 @@ Dependencies:
 - The Whisper model is loaded lazily in CPU mode and cached after the first
   audio upload.
 
-If transcription fails or produces no readable speech, Atlas Lite returns
+If transcription fails or produces no readable speech, KORA returns
 `400 Bad Request` with a meaningful error message.

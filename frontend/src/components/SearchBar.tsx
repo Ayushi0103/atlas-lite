@@ -50,7 +50,7 @@ export const SearchBar = forwardRef<SearchBarHandle, SearchBarProps>(function Se
         type="search"
         value={query}
       />
-      <button aria-label="Search Atlas Lite" disabled={disabled || !query.trim()} type="submit">
+      <button aria-label="Search KORA" disabled={disabled || !query.trim()} type="submit">
         <ArrowUpRightIcon aria-hidden="true" />
       </button>
     </form>

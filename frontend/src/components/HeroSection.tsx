@@ -14,8 +14,8 @@ export const HeroSection = forwardRef<SearchBarHandle, HeroSectionProps>(functio
   ref,
 ) {
   return (
-    <main className="hero-section" aria-label="Atlas Lite home">
-      <h1>Atlas lite</h1>
+    <main className="hero-section" aria-label="KORA home">
+      <h1>KORA</h1>
       <p>Your second brain.</p>
       <p>Ask anything — find everything.</p>
       <SearchBar disabled={isLoading} onSubmit={onSearch} ref={ref} />

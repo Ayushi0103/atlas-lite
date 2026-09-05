@@ -4,7 +4,7 @@ from typing import Annotated
 from fastapi import Depends
 from sqlmodel import SQLModel, Session, create_engine
 
-# Project root (Atlas Lite/)
+# Project root
 ROOT_DIR = Path(__file__).resolve().parents[2]
 
 DATABASE_PATH = ROOT_DIR / "atlas.db"

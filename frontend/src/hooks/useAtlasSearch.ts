@@ -79,7 +79,7 @@ export function useAtlasSearch() {
         intent: answer.intent ?? null,
       });
     } catch (error) {
-      setError(error instanceof Error ? error.message : "Atlas could not answer that yet.");
+      setError(error instanceof Error ? error.message : "KORA could not answer that yet.");
     } finally {
       setIsLoading(false);
     }

@@ -16,7 +16,7 @@ export function AnswerCard({ answer, error, isLoading }: AnswerCardProps) {
         answer ? (
           <MarkdownContent content={answer} />
         ) : (
-          <p>Ask a question to let Atlas synthesize an answer from your indexed files.</p>
+          <p>Ask a question to let KORA synthesize an answer from your indexed files.</p>
         )
       )}
     </GlassCard>

@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 MAX_GRAPH_INPUT_CHARS = 24000
 
-KNOWLEDGE_GRAPH_SYSTEM_PROMPT = """You are Atlas Lite's knowledge graph extraction engine.
+KNOWLEDGE_GRAPH_SYSTEM_PROMPT = """You are KORA's knowledge graph extraction engine.
 
 Extract entities, concepts, and relationships only from the supplied document.
 Return only valid JSON with these exact keys:
