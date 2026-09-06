@@ -67,7 +67,7 @@ export type SearchState = {
   intent: string | null;
 };
 
-export type AppView = "home" | "search" | "collections" | "chat";
+export type AppView = "home" | "library" | "search" | "collections" | "chat" | "knowledge-map";
 
 export type SearchScope = "all" | "documents" | "notes";
 export type SearchSince = "all" | "today" | "week" | "month";
@@ -93,6 +93,12 @@ export type CollectionNoteSummary = {
   tags: string;
   created_at: string;
   updated_at: string;
+};
+
+export type NotePayload = {
+  title: string;
+  content: string;
+  tags: string;
 };
 
 export type ChatMessage = {

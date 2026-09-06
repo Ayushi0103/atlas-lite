@@ -7,6 +7,7 @@ import type {
   Collection,
   CollectionNoteSummary,
   DocumentFile,
+  NotePayload,
   RagSource,
   SearchFilters,
   SemanticResult,
@@ -152,6 +153,21 @@ export function uploadDocument(file: File) {
   });
 }
 
+export function createNote(note: NotePayload) {
+  return request<{ status: string; note: CollectionNoteSummary }>("/notes", {
+    method: "POST",
+    body: JSON.stringify(note),
+  });
+}
+
+// --- Knowledge graph ---
+
+export function getKnowledgeGraph(concept: string) {
+  return request<{ concept: string; related: { relationship: string; target: string; type: string }[] }>(
+    `/knowledge-graph?q=${encodeURIComponent(concept)}`,
+  );
+}
+
 // --- Collections ---
 
 export function getCollections() {
@@ -173,6 +189,12 @@ export function deleteCollection(collectionId: number) {
 
 export function getCollectionNotes(collectionId: number) {
   return request<CollectionNoteSummary[]>(`/collections/${collectionId}/notes`);
+}
+
+export function attachNoteToCollection(collectionId: number, noteId: number) {
+  return request<{ status: string; message: string }>(`/collections/${collectionId}/notes/${noteId}`, {
+    method: "POST",
+  });
 }
 
 // --- Chat / conversations ---

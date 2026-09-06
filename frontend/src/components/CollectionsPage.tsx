@@ -1,8 +1,10 @@
 import { FormEvent, useEffect, useState } from "react";
 import { GlassCard, Loader } from "./Glass";
-import { ArrowRightIcon, GridIcon, HomeIcon, SunIcon } from "./Icons";
+import { ArrowRightIcon, GridIcon, HomeIcon, PlusIcon, SunIcon } from "./Icons";
 import {
+  attachNoteToCollection,
   createCollection,
+  createNote,
   deleteCollection,
   getCollectionNotes,
   getCollections,
@@ -24,6 +26,9 @@ export function CollectionsPage({ isOpen, onClose }: CollectionsPageProps) {
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [notesById, setNotesById] = useState<Record<number, CollectionNoteSummary[]>>({});
   const [notesLoadingId, setNotesLoadingId] = useState<number | null>(null);
+  const [addingId, setAddingId] = useState<number | null>(null);
+  const [savingNoteId, setSavingNoteId] = useState<number | null>(null);
+  const [newNotesById, setNewNotesById] = useState<Record<number, { title: string; content: string; tags: string }>>({});
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
 
   async function refresh() {
@@ -93,6 +98,44 @@ export function CollectionsPage({ isOpen, onClose }: CollectionsPageProps) {
     }
   }
 
+  function updateDraft(collectionId: number, field: "title" | "content" | "tags", value: string) {
+    const emptyDraft = { title: "", content: "", tags: "" };
+    setNewNotesById((prev) => ({
+      ...prev,
+      [collectionId]: {
+        ...emptyDraft,
+        ...prev[collectionId],
+        [field]: value,
+      },
+    }));
+  }
+
+  async function handleAddNote(event: FormEvent, collectionId: number) {
+    event.preventDefault();
+    const draft = newNotesById[collectionId];
+    const title = draft?.title.trim() ?? "";
+    const content = draft?.content.trim() ?? "";
+    const tags = draft?.tags.trim() ?? "";
+
+    if (!title || !content) return;
+
+    setSavingNoteId(collectionId);
+    setError(null);
+    try {
+      const response = await createNote({ title, content, tags });
+      await attachNoteToCollection(collectionId, response.note.id);
+      setNewNotesById((prev) => ({ ...prev, [collectionId]: { title: "", content: "", tags: "" } }));
+      setAddingId(null);
+      const notes = await getCollectionNotes(collectionId);
+      setNotesById((prev) => ({ ...prev, [collectionId]: notes }));
+      setExpandedId(collectionId);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not add content to this collection.");
+    } finally {
+      setSavingNoteId(null);
+    }
+  }
+
   return (
     <section className={`result-sheet ${isOpen ? "is-open" : ""}`} aria-hidden={!isOpen}>
       <div className="sheet-frame">
@@ -142,10 +185,52 @@ export function CollectionsPage({ isOpen, onClose }: CollectionsPageProps) {
                         {expandedId === collection.id ? "Hide notes" : "View notes"}
                         <ArrowRightIcon aria-hidden="true" />
                       </button>
+                      <button onClick={() => setAddingId((current) => (current === collection.id ? null : collection.id))} type="button">
+                        <PlusIcon aria-hidden="true" />
+                        Add content
+                      </button>
                       <button className="danger-link" onClick={() => handleDelete(collection.id)} type="button">
                         Delete
                       </button>
                     </div>
+                    {addingId === collection.id && (
+                      <form className="collection-add-form" onSubmit={(event) => handleAddNote(event, collection.id)}>
+                        <input
+                          aria-label={`Title for new content in ${collection.name}`}
+                          onChange={(event) => updateDraft(collection.id, "title", event.target.value)}
+                          placeholder="Content title"
+                          value={newNotesById[collection.id]?.title ?? ""}
+                        />
+                        <textarea
+                          aria-label={`Content for new note in ${collection.name}`}
+                          onChange={(event) => updateDraft(collection.id, "content", event.target.value)}
+                          placeholder="Write anything you want to keep in this collection..."
+                          rows={4}
+                          value={newNotesById[collection.id]?.content ?? ""}
+                        />
+                        <input
+                          aria-label={`Tags for new content in ${collection.name}`}
+                          onChange={(event) => updateDraft(collection.id, "tags", event.target.value)}
+                          placeholder="Tags (optional)"
+                          value={newNotesById[collection.id]?.tags ?? ""}
+                        />
+                        <div className="collection-add-actions">
+                          <button
+                            disabled={
+                              savingNoteId === collection.id ||
+                              !newNotesById[collection.id]?.title.trim() ||
+                              !newNotesById[collection.id]?.content.trim()
+                            }
+                            type="submit"
+                          >
+                            {savingNoteId === collection.id ? "Adding..." : "Add to collection"}
+                          </button>
+                          <button onClick={() => setAddingId(null)} type="button">
+                            Cancel
+                          </button>
+                        </div>
+                      </form>
+                    )}
                     {expandedId === collection.id && (
                       <div className="collection-notes">
                         {notesLoadingId === collection.id && <Loader label="Loading notes" />}

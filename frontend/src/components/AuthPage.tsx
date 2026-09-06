@@ -1,5 +1,4 @@
 import { FormEvent, useState } from "react";
-import { BackgroundLayer } from "./BackgroundLayer";
 import { GlassCard } from "./Glass";
 import { SparkleIcon } from "./Icons";
 import { useAuth } from "../context/AuthContext";
@@ -33,7 +32,6 @@ export function AuthPage() {
 
   return (
     <div className="app-shell auth-shell">
-      <BackgroundLayer />
       <div className="auth-frame">
         <GlassCard className="auth-card">
           <div className="auth-brand">

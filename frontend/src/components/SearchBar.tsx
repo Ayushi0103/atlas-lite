@@ -5,6 +5,8 @@ type SearchBarProps = {
   disabled?: boolean;
   initialValue?: string;
   onSubmit: (query: string) => void;
+  placeholder?: string;
+  variant?: "hero" | "global" | "compact";
 };
 
 export type SearchBarHandle = {
@@ -12,7 +14,7 @@ export type SearchBarHandle = {
 };
 
 export const SearchBar = forwardRef<SearchBarHandle, SearchBarProps>(function SearchBar(
-  { disabled = false, initialValue = "", onSubmit },
+  { disabled = false, initialValue = "", onSubmit, placeholder = "Search your files, notes, conversations, and more...", variant = "hero" },
   ref,
 ) {
   const [query, setQuery] = useState(initialValue);
@@ -39,13 +41,13 @@ export const SearchBar = forwardRef<SearchBarHandle, SearchBarProps>(function Se
   }
 
   return (
-    <form className="hero-search" onSubmit={handleSubmit} role="search">
+    <form className={`kora-search kora-search-${variant}`} onSubmit={handleSubmit} role="search">
       <SparkleIcon className="search-spark" aria-hidden="true" />
       <input
         aria-label="Ask anything from your files"
         disabled={disabled}
         onChange={(event) => setQuery(event.target.value)}
-        placeholder="Ask anything from your files..."
+        placeholder={placeholder}
         ref={inputRef}
         type="search"
         value={query}

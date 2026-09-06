@@ -12,6 +12,7 @@ from app.services.auth import (
     create_access_token,
     get_user_by_email,
     hash_password,
+    verify_password,
 )
 
 
@@ -49,6 +50,15 @@ class LoginRequest(BaseModel):
     @classmethod
     def validate_email(cls, value: str) -> str:
         return _validate_email(value)
+
+
+class ProfileUpdateRequest(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str = Field(min_length=1)
+    new_password: str = Field(min_length=8, max_length=128)
 
 
 class UserRead(BaseModel):
@@ -114,3 +124,44 @@ def login(request: LoginRequest, session: SessionDep) -> AuthResponse:
 @router.get("/me", response_model=UserRead)
 def read_current_user(current_user: CurrentUser) -> UserRead:
     return UserRead.model_validate(current_user)
+
+
+@router.patch("/me", response_model=UserRead)
+def update_current_user(
+    request: ProfileUpdateRequest,
+    session: SessionDep,
+    current_user: CurrentUser,
+) -> UserRead:
+    current_user.name = request.name.strip()
+    try:
+        session.add(current_user)
+        session.commit()
+        session.refresh(current_user)
+    except Exception as exc:
+        session.rollback()
+        logger.exception("Failed to update user profile")
+        raise HTTPException(status_code=500, detail="Could not update profile.") from exc
+
+    return UserRead.model_validate(current_user)
+
+
+@router.post("/change-password", status_code=status.HTTP_204_NO_CONTENT)
+def change_password(
+    request: ChangePasswordRequest,
+    session: SessionDep,
+    current_user: CurrentUser,
+):
+    if not verify_password(request.current_password, current_user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Current password is incorrect.",
+        )
+
+    current_user.hashed_password = hash_password(request.new_password)
+    try:
+        session.add(current_user)
+        session.commit()
+    except Exception as exc:
+        session.rollback()
+        logger.exception("Failed to change password")
+        raise HTTPException(status_code=500, detail="Could not change password.") from exc

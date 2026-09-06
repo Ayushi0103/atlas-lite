@@ -1,9 +1,9 @@
 import type { DocumentFile, SearchState } from "../types/atlas";
 import { AnswerCard } from "./AnswerCard";
-import { HomeIcon, SunIcon } from "./Icons";
-import { RecentFiles } from "./RecentFiles";
+import { ArrowRightIcon, HomeIcon, SparkleIcon } from "./Icons";
 import { RelatedConcepts } from "./RelatedConcepts";
 import { RelatedSources } from "./RelatedSources";
+import { SearchBar } from "./SearchBar";
 
 type SearchDashboardProps = {
   documents: DocumentFile[];
@@ -11,6 +11,7 @@ type SearchDashboardProps = {
   isLoading: boolean;
   isOpen: boolean;
   onClose: () => void;
+  onSearch: (query: string) => void;
   search: SearchState;
 };
 
@@ -24,30 +25,60 @@ const INTENT_LABELS: Record<string, string> = {
   general_question: "Searched your knowledge base",
 };
 
-export function SearchDashboard({ documents, error, isLoading, isOpen, onClose, search }: SearchDashboardProps) {
+export function SearchDashboard({ documents, error, isLoading, isOpen, onClose, onSearch, search }: SearchDashboardProps) {
   const intentLabel = search.intent ? INTENT_LABELS[search.intent] : null;
 
   return (
-    <section className={`result-sheet ${isOpen ? "is-open" : ""}`} aria-hidden={!isOpen}>
-      <div className="sheet-frame">
-        <header className="sheet-header">
-          <button className="sheet-home" aria-label="Back home" onClick={onClose} type="button">
+    <section className={`search-workspace page-surface ${isOpen ? "is-open" : ""}`} aria-hidden={!isOpen}>
+      <header className="page-header">
+          <button className="icon-button" aria-label="Back home" onClick={onClose} type="button">
             <HomeIcon aria-hidden="true" />
           </button>
-          <div className="query-pill" title={search.query}>{search.query || "Ask KORA"}</div>
-          <div className="greeting">Good morning <SunIcon aria-hidden="true" /></div>
-        </header>
-        <div className="sheet-content">
-          {!isLoading && !error && intentLabel && (
-            <p className="intent-badge">{intentLabel}</p>
-          )}
-          <AnswerCard answer={search.answer} error={error} isLoading={isLoading} />
-          <RelatedConcepts concepts={search.relatedConcepts} />
-          <div className="dashboard-grid">
-            <RecentFiles documents={documents} />
-            <RelatedSources semanticResults={search.semanticResults} sources={search.sources} />
+          <div>
+            <h1>Search results</h1>
+            <p title={search.query}>{search.query || "Ask KORA"}</p>
           </div>
-        </div>
+          {intentLabel && !isLoading && !error && <span className="intent-badge">{intentLabel}</span>}
+      </header>
+
+      <div className="result-layout">
+        <main className="answer-column">
+          <section className="result-hero">
+            <div>
+              <SparkleIcon aria-hidden="true" />
+              <h2>Here’s what I found</h2>
+              <p>KORA searched across {documents.length} indexed items and synthesized the most relevant answer.</p>
+            </div>
+          </section>
+          <AnswerCard answer={search.answer} error={error} isLoading={isLoading} />
+          <div className="follow-up-box">
+            <SearchBar
+              disabled={isLoading}
+              onSubmit={onSearch}
+              placeholder="Ask a follow-up..."
+              variant="compact"
+            />
+          </div>
+        </main>
+
+        <aside className="result-aside">
+          <RelatedSources semanticResults={search.semanticResults} sources={search.sources} />
+          <RelatedConcepts concepts={search.relatedConcepts} />
+          <section className="dashboard-panel follow-up-panel">
+            <h2>You may also ask</h2>
+            {search.semanticResults.slice(0, 3).map((result) => {
+              const title = result.filename || result.title || "this source";
+              const prompt = `What are the key ideas from ${title}?`;
+              return (
+                <button key={`${result.type}-${result.id}`} onClick={() => onSearch(prompt)} type="button">
+                  <span>{prompt}</span>
+                  <ArrowRightIcon aria-hidden="true" />
+                </button>
+              );
+            })}
+            {search.semanticResults.length === 0 && <p className="empty-copy">Follow-up suggestions appear with source results.</p>}
+          </section>
+        </aside>
       </div>
     </section>
   );

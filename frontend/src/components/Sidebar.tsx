@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { ReactElement } from "react";
-import { BellIcon, ChatIcon, GridIcon, HomeIcon, MoonIcon, SearchIcon, SettingsIcon, SunIcon } from "./Icons";
+import { BellIcon, BookmarkIcon, ChatIcon, FolderIcon, GridIcon, HomeIcon, MoonIcon, NetworkIcon, SettingsIcon, SunIcon } from "./Icons";
+import { KoraLogo } from "./KoraLogo";
 import { NotificationsPanel } from "./NotificationsPanel";
 import { SettingsPanel } from "./SettingsPanel";
 import { useAuth } from "../context/AuthContext";
@@ -57,28 +58,43 @@ export function Sidebar({ currentView, onNavigate }: SidebarProps) {
   }
 
   const items: NavItem[] = [
-    { label: "Home", icon: <HomeIcon />, view: "home" },
-    { label: "Search", icon: <SearchIcon />, view: "search" },
-    { label: "Collections", icon: <GridIcon />, view: "collections" },
-    { label: "Chat", icon: <ChatIcon />, view: "chat" },
+    { label: "Dashboard", icon: <GridIcon />, view: "home" },
+    { label: "My Library", icon: <FolderIcon />, view: "library" },
+    { label: "AI Assistant", icon: <ChatIcon />, view: "chat" },
+    { label: "Knowledge Map", icon: <NetworkIcon />, view: "knowledge-map" },
+    { label: "Spaces", icon: <HomeIcon />, view: "collections" },
   ];
 
   return (
-    <nav className="side-rail" aria-label="Primary" ref={rootRef}>
-      <div className="side-group">
+    <nav className="sidebar" aria-label="Primary" ref={rootRef}>
+      <KoraLogo />
+      <div className="nav-list">
         {items.map((item) => (
           <button
             aria-current={currentView === item.view ? "page" : undefined}
-            aria-label={item.label}
-            className={`rail-button ${currentView === item.view ? "is-active" : ""}`}
+            className={`nav-item ${currentView === item.view ? "is-active" : ""}`}
             key={item.label}
             onClick={() => onNavigate(item.view)}
-            title={item.label}
             type="button"
           >
             {item.icon}
+            <span>{item.label}</span>
           </button>
         ))}
+        <button className="nav-item" disabled type="button">
+          <BookmarkIcon />
+          <span>Bookmarks</span>
+        </button>
+      </div>
+
+      <div className="sidebar-spacer" />
+
+      <div className="sidebar-card storage-card">
+        <div>
+          <strong>Storage</strong>
+          <span>Local library</span>
+        </div>
+        <div className="storage-bar"><span /></div>
       </div>
 
       <div className="profile-menu">
@@ -110,7 +126,7 @@ export function Sidebar({ currentView, onNavigate }: SidebarProps) {
         )}
       </div>
 
-      <div className="side-group">
+      <div className="sidebar-actions">
         <div className="rail-popover-anchor">
           <button
             aria-expanded={openPopover === "notifications"}

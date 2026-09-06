@@ -2,12 +2,14 @@ import { useRef } from "react";
 import { ClockIcon, FileIcon, GridIcon, SearchIcon, UploadIcon } from "./Icons";
 import { Dropdown, type DropdownOption } from "./Dropdown";
 import type { SearchFilters } from "../types/atlas";
+import { SearchBar } from "./SearchBar";
 
 type TopToolbarProps = {
   filters: SearchFilters;
   isUploading: boolean;
   onAskAI: () => void;
   onFiltersChange: (filters: SearchFilters) => void;
+  onSearch: (query: string) => void;
   onUpload: (file: File) => void;
 };
 
@@ -34,15 +36,12 @@ const FILE_TYPE_OPTIONS: DropdownOption[] = [
   { label: "YouTube", value: "youtube" },
 ];
 
-export function TopToolbar({ filters, isUploading, onAskAI, onFiltersChange, onUpload }: TopToolbarProps) {
+export function TopToolbar({ filters, isUploading, onAskAI, onFiltersChange, onSearch, onUpload }: TopToolbarProps) {
   const inputRef = useRef<HTMLInputElement>(null);
 
   return (
     <header className="top-toolbar">
-      <button className="ask-pill" onClick={onAskAI} type="button">
-        <SearchIcon aria-hidden="true" />
-        <span>Ask AI</span>
-      </button>
+      <SearchBar disabled={isUploading} onSubmit={onSearch} variant="global" />
       <div className="toolbar-filters" aria-label="Search filters">
         <Dropdown
           icon={<FileIcon />}
