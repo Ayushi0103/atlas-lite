@@ -1,20 +1,109 @@
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { GlassCard } from "./Glass";
 import { SparkleIcon } from "./Icons";
 import { useAuth } from "../context/AuthContext";
 
 type Mode = "login" | "register";
 
+type GoogleCredentialResponse = {
+  credential?: string;
+};
+
+type GoogleButtonText = "signin_with" | "signup_with";
+
+declare global {
+  interface Window {
+    google?: {
+      accounts: {
+        id: {
+          initialize: (config: {
+            client_id: string;
+            callback: (response: GoogleCredentialResponse) => void;
+          }) => void;
+          renderButton: (
+            parent: HTMLElement,
+            options: {
+              shape: "pill";
+              size: "large";
+              text: GoogleButtonText;
+              theme: "outline";
+              width: string;
+            },
+          ) => void;
+        };
+      };
+    };
+  }
+}
+
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
+const GOOGLE_SCRIPT_ID = "google-identity-services";
+
 export function AuthPage() {
-  const { login, register, isSubmitting, error, clearError } = useAuth();
+  const { login, googleSignIn, register, isSubmitting, error, clearError } = useAuth();
   const [mode, setMode] = useState<Mode>("login");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [googleError, setGoogleError] = useState<string | null>(null);
+  const googleButtonRef = useRef<HTMLDivElement>(null);
+  const isGoogleOriginSupported =
+    window.location.protocol === "https:" ||
+    (window.location.protocol === "http:" && window.location.hostname === "localhost");
+
+  useEffect(() => {
+    if (!GOOGLE_CLIENT_ID || !isGoogleOriginSupported) return;
+
+    function renderGoogleButton() {
+      if (!GOOGLE_CLIENT_ID || !window.google || !googleButtonRef.current) return;
+
+      googleButtonRef.current.innerHTML = "";
+      window.google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: (response) => {
+          if (!response.credential) {
+            setGoogleError("Google did not return a sign-in credential.");
+            return;
+          }
+
+          setGoogleError(null);
+          void googleSignIn(response.credential).catch(() => {
+            // error is already surfaced via context state
+          });
+        },
+      });
+      window.google.accounts.id.renderButton(googleButtonRef.current, {
+        shape: "pill",
+        size: "large",
+        text: mode === "login" ? "signin_with" : "signup_with",
+        theme: "outline",
+        width: "100%",
+      });
+    }
+
+    const existingScript = document.getElementById(GOOGLE_SCRIPT_ID) as HTMLScriptElement | null;
+    if (window.google) {
+      renderGoogleButton();
+      return;
+    }
+
+    const script = existingScript ?? document.createElement("script");
+    script.id = GOOGLE_SCRIPT_ID;
+    script.src = "https://accounts.google.com/gsi/client";
+    script.async = true;
+    script.defer = true;
+    script.onload = renderGoogleButton;
+    script.onerror = () => setGoogleError("Could not load Google sign-in.");
+
+    if (!existingScript) {
+      document.head.appendChild(script);
+    }
+  }, [googleSignIn, isGoogleOriginSupported, mode]);
 
   function switchMode(nextMode: Mode) {
     setMode(nextMode);
     clearError();
+    setGoogleError(null);
   }
 
   async function handleSubmit(event: FormEvent) {
@@ -95,6 +184,25 @@ export function AuthPage() {
                   : "Create account"}
             </button>
           </form>
+
+          <div className="auth-divider">
+            <span>or</span>
+          </div>
+
+          {GOOGLE_CLIENT_ID && isGoogleOriginSupported ? (
+            <div className="google-signin-slot" ref={googleButtonRef} />
+          ) : (
+            <button className="google-config-button" disabled type="button">
+              Sign in with Google
+            </button>
+          )}
+          {!GOOGLE_CLIENT_ID && (
+            <p className="auth-helper">Add VITE_GOOGLE_CLIENT_ID to enable Google sign-in.</p>
+          )}
+          {GOOGLE_CLIENT_ID && !isGoogleOriginSupported && (
+            <p className="auth-helper">Open KORA at http://localhost:5173 to use Google sign-in.</p>
+          )}
+          {googleError && <p className="error-copy auth-error">{googleError}</p>}
 
           <p className="auth-switch">
             {mode === "login" ? (

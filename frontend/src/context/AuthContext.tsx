@@ -11,6 +11,7 @@ import {
   changePassword as changePasswordRequest,
   getCurrentUser,
   loginAccount,
+  loginWithGoogle,
   registerAccount,
   setAuthToken,
   setUnauthorizedHandler,
@@ -26,6 +27,7 @@ type AuthContextValue = {
   isSubmitting: boolean;
   error: string | null;
   login: (email: string, password: string) => Promise<void>;
+  googleSignIn: (credential: string) => Promise<void>;
   register: (name: string, email: string, password: string) => Promise<void>;
   logout: () => void;
   clearError: () => void;
@@ -85,6 +87,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const googleSignIn = useCallback(async (credential: string) => {
+    setIsSubmitting(true);
+    setError(null);
+    try {
+      const response = await loginWithGoogle(credential);
+      localStorage.setItem(TOKEN_STORAGE_KEY, response.access_token);
+      setAuthToken(response.access_token);
+      setUser(response.user);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not sign in with Google.");
+      throw err;
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, []);
+
   const register = useCallback(async (name: string, email: string, password: string) => {
     setIsSubmitting(true);
     setError(null);
@@ -119,13 +137,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isSubmitting,
       error,
       login,
+      googleSignIn,
       register,
       logout,
       clearError,
       updateProfile,
       changePassword,
     }),
-    [user, isInitializing, isSubmitting, error, login, register, logout, clearError, updateProfile, changePassword],
+    [user, isInitializing, isSubmitting, error, login, googleSignIn, register, logout, clearError, updateProfile, changePassword],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

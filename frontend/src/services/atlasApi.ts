@@ -77,6 +77,13 @@ export function loginAccount(email: string, password: string) {
   });
 }
 
+export function loginWithGoogle(credential: string) {
+  return request<AuthResponse>("/auth/google", {
+    method: "POST",
+    body: JSON.stringify({ credential }),
+  });
+}
+
 export function getCurrentUser() {
   return request<AuthUser>("/auth/me");
 }

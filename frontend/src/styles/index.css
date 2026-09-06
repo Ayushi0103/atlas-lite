@@ -1065,9 +1065,44 @@ button:focus-visible, input:focus-visible, a:focus-visible {
 .auth-brand { display: flex; align-items: center; gap: 10px; color: var(--purple); font-weight: 900; }
 .auth-form { display: grid; gap: 14px; }
 .auth-field { display: grid; gap: 6px; }
-.auth-subtitle, .auth-switch { color: var(--muted); }
+.auth-subtitle, .auth-switch, .auth-helper { color: var(--muted); }
 .auth-submit { min-height: 46px; }
 .auth-switch button { border: 0; background: transparent; color: var(--purple); font-weight: 800; }
+.auth-divider {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 12px;
+  margin: 18px 0;
+  color: var(--muted);
+  font-size: .78rem;
+  font-weight: 800;
+}
+.auth-divider::before, .auth-divider::after {
+  content: "";
+  height: 1px;
+  background: var(--line);
+}
+.google-signin-slot {
+  min-height: 44px;
+}
+.google-signin-slot > div {
+  margin: 0 auto;
+}
+.google-config-button {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--ink);
+  font-weight: 800;
+}
+.auth-helper {
+  margin: 10px 0 0;
+  font-size: .78rem;
+  line-height: 1.45;
+}
 
 button:disabled:hover {
   box-shadow: none;
